@@ -1,0 +1,11 @@
+# Dashboard AI/BI da Diretoria de Customer Success: quem são os melhores clientes e onde
+# estão. Consome gold.clientes_segmentacao.
+
+resources:
+  dashboards:
+    diretoria_customer_success:
+      display_name: "Diretoria de Customer Success"
+      file_path: ../src/dashboards/diretoria_customer_success.lvdash.json
+      warehouse_id: ${var.warehouse_id}
+      dataset_catalog: ${var.catalog}
+      dataset_schema: gold

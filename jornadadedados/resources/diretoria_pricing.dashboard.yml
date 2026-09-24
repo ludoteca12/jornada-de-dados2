@@ -1,0 +1,11 @@
+# Dashboard AI/BI da Diretoria de Pricing: estamos mais caros que a concorrência, e em quais
+# produtos agir? Consome gold.precos_competitividade e gold.vendas_produtos.
+
+resources:
+  dashboards:
+    diretoria_pricing:
+      display_name: "Diretoria de Pricing"
+      file_path: ../src/dashboards/diretoria_pricing.lvdash.json
+      warehouse_id: ${var.warehouse_id}
+      dataset_catalog: ${var.catalog}
+      dataset_schema: gold

@@ -31,6 +31,8 @@ chaves = {
     "silver.clientes": ["id_cliente"],
     "silver.preco_competidores": ["id_produto", "nome_concorrente"],
     "silver.vendas": ["id_venda"],
+    "gold.vendas_detalhadas": ["id_venda"],
+    "gold.precos_competitividade": ["id_produto"],
 }
 
 for nome_tabela, chave in chaves.items():
@@ -91,6 +93,60 @@ vip_abaixo_do_limite = clientes_segmentacao.where(
     (F.col("segmento_cliente") == "VIP") & (F.col("receita") < 22000)
 ).count()
 registrar("gold_clientes_segmentacao_vip_acima_de_22000", vip_abaixo_do_limite)
+
+# COMMAND ----------
+# gold.vendas_temporais, gold.vendas_produtos e gold.vendas_detalhadas: receita total deve
+# bater com silver.vendas (nenhuma venda pode se perder ou duplicar nas agregações)
+
+for nome_tabela in ("gold.vendas_temporais", "gold.vendas_produtos", "gold.vendas_detalhadas"):
+    receita_tabela = spark.read.table(tabela(nome_tabela)).agg(F.sum("receita")).first()[0] or 0
+    registrar(
+        f"{nome_tabela}_receita_igual_silver_vendas".replace(".", "_"),
+        0 if receita_tabela == receita_silver else 1,
+    )
+
+# COMMAND ----------
+# gold.vendas_detalhadas: mesmo número de linhas de silver.vendas (grão de uma linha por venda)
+
+vendas_detalhadas = spark.read.table(tabela("gold.vendas_detalhadas"))
+diferenca_linhas = abs(vendas_detalhadas.count() - total_vendas)
+registrar("gold_vendas_detalhadas_mesma_contagem_de_silver_vendas", diferenca_linhas)
+
+# COMMAND ----------
+# gold.vendas_detalhadas: toda venda precisa ter segmento e região preenchidos (o join com
+# gold.clientes_segmentacao não pode perder nenhuma venda)
+
+sem_segmento_ou_regiao = vendas_detalhadas.where(
+    F.col("segmento_cliente").isNull() | F.col("regiao").isNull()
+).count()
+registrar("gold_vendas_detalhadas_toda_venda_com_segmento_e_regiao", sem_segmento_ou_regiao)
+
+# COMMAND ----------
+# gold.precos_competitividade: uma linha por produto monitorado (mesma contagem de
+# silver.produtos), classificacao_preco só nos 3 valores válidos, e nunca diferenca_pct
+# preenchida sem preco_medio_concorrentes (o NULL tem que andar junto)
+
+precos_competitividade = spark.read.table(tabela("gold.precos_competitividade"))
+total_produtos = spark.read.table(tabela("silver.produtos")).count()
+registrar(
+    "gold_precos_competitividade_mesma_contagem_de_silver_produtos",
+    abs(precos_competitividade.count() - total_produtos),
+)
+
+classificacao_invalida = precos_competitividade.where(
+    ~F.col("classificacao_preco").isin(
+        "MAIS_CARO_QUE_TODOS", "MAIS_BARATO_QUE_TODOS", "PRECO_COMPETITIVO"
+    )
+).count()
+registrar("gold_precos_competitividade_classificacao_valida", classificacao_invalida)
+
+diferenca_pct_inconsistente = precos_competitividade.where(
+    F.col("diferenca_pct").isNotNull() & F.col("preco_medio_concorrentes").isNull()
+).count()
+registrar(
+    "gold_precos_competitividade_diferenca_pct_consistente_com_preco_medio",
+    diferenca_pct_inconsistente,
+)
 
 # COMMAND ----------
 # Toda coluna das tabelas gold precisa ter comentário (Genie e dashboard dependem disso).

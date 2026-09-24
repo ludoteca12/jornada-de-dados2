@@ -54,3 +54,25 @@ If the CLI is not installed, see: https://docs.databricks.com/dev-tools/cli/inst
   dinheiro que entrou é receita.
 - Período dos dados do e-commerce: 13/12/2025 a 11/01/2026.
 - Toda gold nova ganha testes no notebook `testes/testes_qualidade.py`.
+
+## Convenções de dashboards AI/BI (valem para todas as diretorias)
+
+- Um arquivo por dashboard: `src/dashboards/<nome>.lvdash.json`, com o recurso em
+  `resources/<nome>.dashboard.yml`.
+- `warehouse_id` do recurso vem de `${var.warehouse_id}`, uma variável do bundle com
+  `lookup` pelo nome do warehouse ("Serverless Starter Warehouse") declarada em
+  `databricks.yml`. `dataset_catalog` do recurso = `${var.catalog}`; `dataset_schema` =
+  `gold`.
+- Toda query dentro do `.lvdash.json` usa nome de tabela puro (`FROM vendas_detalhadas`),
+  sem catálogo nem schema — o mesmo dashboard funciona em dev e prod.
+- Tudo em português: título, subtítulo (com período e fonte dos dados), nomes de gráficos e
+  eixos. Canal exibido como "E-commerce"/"Loja física" (o dado cru é
+  `ecommerce`/`loja_fisica`, mapear com CASE na query). Dinheiro em R$.
+- Layout de leitura rápida: título, uma linha de KPIs, gráficos, tabela de detalhe para agir.
+- Regras que nenhum gráfico pode quebrar: ticket médio é receita total ÷ número de vendas,
+  nunca média de médias; nunca somar `clientes_unicos` entre linhas de `vendas_temporais`;
+  produto se conta por `id_produto` (nomes se repetem); dia da semana se compara pela
+  receita MÉDIA por dia (o período tem 5 sábados e 5 domingos e só 4 de cada dia útil — não
+  dá pra comparar por soma direto). Data e hora estão em UTC: dizer isso no eixo.
+  `diferenca_pct` (em `gold.precos_competitividade`) está em pontos percentuais (10 = 10%):
+  não usar formato de porcentagem 0-1 sem dividir por 100 antes.
