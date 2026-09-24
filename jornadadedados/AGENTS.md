@@ -41,3 +41,16 @@ If the CLI is not installed, see: https://docs.databricks.com/dev-tools/cli/inst
 - Sempre rodar `databricks bundle validate --strict` antes do deploy.
 - CLI: use `--profile dbc-b2999451-9f53` (perfil válido para
   `https://dbc-b2999451-9f53.cloud.databricks.com`).
+
+## Convenções da camada gold (valem para todas as diretorias)
+
+- SQL, um arquivo por tabela em `transformations/gold/`,
+  `CREATE OR REFRESH MATERIALIZED VIEW gold.<tabela>`.
+- Declarar TODAS as colunas entre parênteses com tipo e `COMMENT` (sem o tipo, o
+  comentário é ignorado), e `COMMENT` na tabela dizendo quando usar. Comentários em
+  português, com unidade (R$), regra de cálculo e avisos que evitem erro do Genie (a IA
+  que gera SQL a partir de perguntas em português) e do dashboard.
+- Incluir TODAS as vendas nas golds de receita, inclusive de produto não cadastrado:
+  dinheiro que entrou é receita.
+- Período dos dados do e-commerce: 13/12/2025 a 11/01/2026.
+- Toda gold nova ganha testes no notebook `testes/testes_qualidade.py`.
