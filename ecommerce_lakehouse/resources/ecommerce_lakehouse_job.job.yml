@@ -1,5 +1,6 @@
-# Job "Ecommerce Lakehouse Pipeline": atualiza a camada silver e, na sequência, roda os testes
-# de qualidade. Se os testes falharem, o job falha (o notebook lança AssertionError).
+# Job "Ecommerce Lakehouse Pipeline": extrai os dados de origem (Supabase), atualiza o
+# pipeline (bronze via Auto Loader, silver e gold) e, na sequência, roda os testes de
+# qualidade. Se os testes falharem, o job falha (o notebook lança AssertionError).
 
 resources:
   jobs:
@@ -11,13 +12,19 @@ resources:
           default: ${var.catalog}
 
       tasks:
-        - task_key: atualizar_silver
+        - task_key: extrair_dados
+          notebook_task:
+            notebook_path: ../extracao/extrair_dados.py
+
+        - task_key: atualizar_pipeline
+          depends_on:
+            - task_key: extrair_dados
           pipeline_task:
             pipeline_id: ${resources.pipelines.ecommerce_lakehouse_etl.id}
 
         - task_key: testes_qualidade
           depends_on:
-            - task_key: atualizar_silver
+            - task_key: atualizar_pipeline
           notebook_task:
             notebook_path: ../testes/testes_qualidade.py
             base_parameters:
