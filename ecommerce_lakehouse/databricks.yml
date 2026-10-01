@@ -1,7 +1,8 @@
-# This is a Declarative Automation Bundle definition for jornadadedados.
+# Declarative Automation Bundle for ecommerce_lakehouse: a Databricks medallion-architecture
+# portfolio project (bronze -> silver -> gold -> AI/BI dashboards -> Genie agents).
 # See https://docs.databricks.com/dev-tools/bundles/index.html for documentation.
 bundle:
-  name: jornadadedados
+  name: ecommerce_lakehouse
   uuid: 2f8182e1-424c-4610-9ff7-154153bb7651
 
 include:
@@ -29,7 +30,7 @@ targets:
     workspace:
       host: https://dbc-b2999451-9f53.cloud.databricks.com
     variables:
-      catalog: jornada-de-dados
+      catalog: ecommerce_lakehouse
       schema: silver
   prod:
     mode: production
@@ -38,7 +39,7 @@ targets:
       # We explicitly deploy to /Workspace/Users/mateusvvas@gmail.com to make sure we only have a single copy.
       root_path: /Workspace/Users/mateusvvas@gmail.com/.bundle/${bundle.name}/${bundle.target}
     variables:
-      catalog: jornada-de-dados
+      catalog: ecommerce_lakehouse
       schema: silver
     permissions:
       - user_name: mateusvvas@gmail.com

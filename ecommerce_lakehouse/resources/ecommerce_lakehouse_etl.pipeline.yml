@@ -1,0 +1,14 @@
+# The main pipeline for ecommerce_lakehouse
+
+resources:
+  pipelines:
+    ecommerce_lakehouse_etl:
+      name: ecommerce_lakehouse_etl
+      catalog: ${var.catalog}
+      schema: ${var.schema}
+      serverless: true
+      root_path: "../src/ecommerce_lakehouse_etl"
+
+      libraries:
+        - glob:
+            include: ../src/ecommerce_lakehouse_etl/transformations/**
