@@ -1,5 +1,5 @@
 # Dashboard AI/BI da Diretoria de Pricing: estamos mais caros que a concorrência, e em quais
-# produtos agir? Consome gold.precos_competitividade e gold.vendas_produtos.
+# produtos agir? Consome gold.precos_competitividade.
 
 resources:
   dashboards:

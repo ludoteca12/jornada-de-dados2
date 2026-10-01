@@ -122,9 +122,10 @@ sem_segmento_ou_regiao = vendas_detalhadas.where(
 registrar("gold_vendas_detalhadas_toda_venda_com_segmento_e_regiao", sem_segmento_ou_regiao)
 
 # COMMAND ----------
-# gold.precos_competitividade: uma linha por produto monitorado (mesma contagem de
-# silver.produtos), classificacao_preco só nos 3 valores válidos, e nunca diferenca_pct
-# preenchida sem preco_medio_concorrentes (o NULL tem que andar junto)
+# gold.precos_competitividade: id_produto único (teste pedido no prompt_04), uma linha por
+# produto monitorado (mesma contagem de silver.produtos), classificacao_preco só nos 5
+# valores válidos, e preco_medio/minimo/maximo_concorrentes sempre preenchidos (produto com
+# preço suspeito continua em todas as contas, nunca vira NULL)
 
 precos_competitividade = spark.read.table(tabela("gold.precos_competitividade"))
 total_produtos = spark.read.table(tabela("silver.produtos")).count()
@@ -135,16 +136,22 @@ registrar(
 
 classificacao_invalida = precos_competitividade.where(
     ~F.col("classificacao_preco").isin(
-        "MAIS_CARO_QUE_TODOS", "MAIS_BARATO_QUE_TODOS", "PRECO_COMPETITIVO"
+        "MAIS_CARO_QUE_TODOS",
+        "MAIS_BARATO_QUE_TODOS",
+        "ACIMA_DA_MEDIA",
+        "ABAIXO_DA_MEDIA",
+        "NA_MEDIA",
     )
 ).count()
 registrar("gold_precos_competitividade_classificacao_valida", classificacao_invalida)
 
 diferenca_pct_inconsistente = precos_competitividade.where(
-    F.col("diferenca_pct").isNotNull() & F.col("preco_medio_concorrentes").isNull()
+    F.col("preco_medio_concorrentes").isNull()
+    | F.col("preco_minimo_concorrentes").isNull()
+    | F.col("preco_maximo_concorrentes").isNull()
 ).count()
 registrar(
-    "gold_precos_competitividade_diferenca_pct_consistente_com_preco_medio",
+    "gold_precos_competitividade_precos_concorrentes_sempre_preenchidos",
     diferenca_pct_inconsistente,
 )
 

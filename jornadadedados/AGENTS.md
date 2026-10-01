@@ -74,5 +74,30 @@ If the CLI is not installed, see: https://docs.databricks.com/dev-tools/cli/inst
   produto se conta por `id_produto` (nomes se repetem); dia da semana se compara pela
   receita MÉDIA por dia (o período tem 5 sábados e 5 domingos e só 4 de cada dia útil — não
   dá pra comparar por soma direto). Data e hora estão em UTC: dizer isso no eixo.
-  `diferenca_pct` (em `gold.precos_competitividade`) está em pontos percentuais (10 = 10%):
-  não usar formato de porcentagem 0-1 sem dividir por 100 antes.
+  `diferenca_pct_vs_media`/`diferenca_pct_vs_minimo` (em `gold.precos_competitividade`) estão
+  em pontos percentuais (10 = 10%): não usar formato de porcentagem 0-1 sem dividir por 100
+  antes.
+
+## Números de referência (conferidos por SQL direto após cada prompt)
+
+Período dos dados: 13/12/2025 a 11/01/2026. Esses números servem de regressão — se uma
+mudança futura na bronze/silver/gold fizer algum deles sair do lugar, investigar antes de
+seguir.
+
+- **Prompt 1 (silver)**: 3.020 vendas, receita total R$ 974.077,28; 20 vendas de produto não
+  cadastrado (R$ 4.240,01); 5 vendas antes do cadastro do produto (R$ 325,88); 55 preços de
+  concorrente suspeitos; 11 clientes com pronome de tratamento no cadastro. Clientes por
+  região: Norte 17, Nordeste 12, Centro-Oeste 9, Sudeste 8, Sul 4.
+- **Prompt 2 (`gold.clientes_segmentacao`)**: 50 clientes, 10 VIP, 25 TOP_TIER, 15 REGULAR;
+  receita R$ 974.077,28 (igual à silver); maior cliente Ana Sophia Pereira (MG, R$ 30.716,63).
+- **Prompt 3 (`gold.vendas_temporais`/`vendas_produtos`/`vendas_detalhadas`)**: receita e
+  3.020 vendas batendo com a silver nas 3 tabelas; 2.155 vendas no canal `ecommerce` (R$
+  705.486,21), ticket médio geral R$ 322,54.
+- **Prompt 4 (`gold.precos_competitividade`)**: 215 produtos monitorados; 35
+  `MAIS_CARO_QUE_TODOS`, dos quais 20 confirmados (sem preço suspeito, R$ 161.375,09 de
+  receita) e 15 com preço suspeito (categoria Tênis, sem nenhuma venda, +100% acima da média
+  do mercado — produto com preço suspeito continua em todas as contas, só precisa ser
+  conferido); 6 `MAIS_BARATO_QUE_TODOS`; excluindo os suspeitos, Beleza é a categoria mais
+  cara (+1,24% vs. média dos concorrentes).
+- **Prompt 5 (dashboards AI/BI)**: 3 dashboards publicados (Diretoria Comercial, Diretoria de
+  Customer Success, Diretoria de Pricing), todos conferidos contra os mesmos números acima.

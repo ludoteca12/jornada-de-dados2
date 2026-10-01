@@ -5,7 +5,9 @@
       "displayName": "Competitividade de preços",
       "queryLines": [
         "SELECT id_produto, nome_produto, categoria, marca, nosso_preco, preco_medio_concorrentes, ",
-        "  preco_minimo_concorrentes, diferenca_pct, possui_preco_suspeito, classificacao_preco, ",
+        "  preco_minimo_concorrentes, preco_maximo_concorrentes, total_concorrentes, ",
+        "  diferenca_pct_vs_media, diferenca_pct_vs_minimo, possui_preco_suspeito, classificacao_preco, ",
+        "  receita, itens_vendidos, ",
         "  CASE WHEN possui_preco_suspeito THEN 'A confirmar' ELSE 'Confirmado' END AS status_preco, ",
         "  CASE WHEN possui_preco_suspeito THEN 'Sim' ELSE 'Não' END AS preco_a_confirmar ",
         "FROM precos_competitividade"
@@ -22,6 +24,11 @@
           "expression": "SUM(CASE WHEN `classificacao_preco` = 'MAIS_CARO_QUE_TODOS' AND NOT `possui_preco_suspeito` THEN 1 ELSE 0 END)"
         },
         {
+          "displayName": "Receita Mais Caros Confirmados",
+          "description": "Receita em R$ só dos produtos MAIS_CARO_QUE_TODOS sem preço suspeito",
+          "expression": "SUM(CASE WHEN `classificacao_preco` = 'MAIS_CARO_QUE_TODOS' AND NOT `possui_preco_suspeito` THEN `receita` ELSE 0 END)"
+        },
+        {
           "displayName": "Preco Suspeito A Conferir",
           "description": "Produtos com pelo menos uma coleta de concorrente marcada como suspeita",
           "expression": "SUM(CASE WHEN `possui_preco_suspeito` THEN 1 ELSE 0 END)"
@@ -29,20 +36,10 @@
       ]
     },
     {
-      "name": "ds_receita_confirmados",
-      "displayName": "Receita dos produtos mais caros confirmados",
-      "queryLines": [
-        "SELECT SUM(vp.receita) AS receita ",
-        "FROM precos_competitividade pc ",
-        "JOIN vendas_produtos vp ON pc.id_produto = vp.id_produto ",
-        "WHERE pc.classificacao_preco = 'MAIS_CARO_QUE_TODOS' AND NOT pc.possui_preco_suspeito"
-      ]
-    },
-    {
       "name": "ds_diferenca_por_categoria",
       "displayName": "Diferença média vs. mercado por categoria (sem suspeitos)",
       "queryLines": [
-        "SELECT categoria, AVG(diferenca_pct) AS diferenca_pct_media ",
+        "SELECT categoria, AVG(diferenca_pct_vs_media) AS diferenca_pct_media ",
         "FROM precos_competitividade ",
         "WHERE NOT possui_preco_suspeito ",
         "GROUP BY categoria ",
@@ -53,13 +50,12 @@
       "name": "ds_mais_caros",
       "displayName": "Produtos mais caros que todos os concorrentes",
       "queryLines": [
-        "SELECT pc.nome_produto, pc.categoria, pc.nosso_preco, pc.preco_medio_concorrentes, ",
-        "  pc.preco_minimo_concorrentes, pc.diferenca_pct, ",
-        "  CASE WHEN pc.possui_preco_suspeito THEN 'Sim' ELSE 'Não' END AS preco_a_confirmar, ",
-        "  COALESCE(vp.receita, 0) AS receita ",
-        "FROM precos_competitividade pc ",
-        "LEFT JOIN vendas_produtos vp ON pc.id_produto = vp.id_produto ",
-        "WHERE pc.classificacao_preco = 'MAIS_CARO_QUE_TODOS' ",
+        "SELECT nome_produto, categoria, nosso_preco, preco_medio_concorrentes, ",
+        "  preco_minimo_concorrentes, diferenca_pct_vs_media, ",
+        "  CASE WHEN possui_preco_suspeito THEN 'Sim' ELSE 'Não' END AS preco_a_confirmar, ",
+        "  receita ",
+        "FROM precos_competitividade ",
+        "WHERE classificacao_preco = 'MAIS_CARO_QUE_TODOS' ",
         "ORDER BY receita DESC"
       ]
     }
@@ -78,7 +74,7 @@
               "lines": [
                 "## Diretoria de Pricing\n",
                 "\n",
-                "Estamos mais caros que a concorrência, e em quais produtos agir? Período: 13/12/2025 a 11/01/2026. Fonte: `gold.precos_competitividade` e `gold.vendas_produtos`. Preço suspeito é erro de coleta ou promoção do concorrente — separe sempre confirmado de suspeito antes de agir."
+                "Estamos mais caros que a concorrência (Mercado Livre, Amazon, Magalu, Shopee), e em quais produtos agir? Período: 13/12/2025 a 11/01/2026. Fonte: `gold.precos_competitividade`. Preço suspeito é erro de coleta ou promoção relâmpago do concorrente — o produto continua em todas as contas, mas separe sempre confirmado de suspeito antes de agir."
               ]
             }
           },
@@ -139,9 +135,9 @@
               {
                 "name": "main_query",
                 "query": {
-                  "datasetName": "ds_receita_confirmados",
-                  "fields": [{ "name": "receita", "expression": "`receita`" }],
-                  "disaggregated": true
+                  "datasetName": "ds_precos",
+                  "fields": [{ "name": "measure(Receita Mais Caros Confirmados)", "expression": "MEASURE(`Receita Mais Caros Confirmados`)" }],
+                  "disaggregated": false
                 }
               }
             ],
@@ -150,7 +146,7 @@
               "widgetType": "counter",
               "encodings": {
                 "value": {
-                  "fieldName": "receita",
+                  "fieldName": "measure(Receita Mais Caros Confirmados)",
                   "displayName": "Receita dos confirmados",
                   "format": { "type": "number-currency", "currencyCode": "BRL", "decimalPlaces": { "type": "max", "places": 2 } }
                 }
@@ -218,7 +214,13 @@
                     "type": "categorical",
                     "sort": {
                       "by": "custom-order",
-                      "orderedValues": ["MAIS_CARO_QUE_TODOS", "PRECO_COMPETITIVO", "MAIS_BARATO_QUE_TODOS"]
+                      "orderedValues": [
+                        "MAIS_CARO_QUE_TODOS",
+                        "ACIMA_DA_MEDIA",
+                        "NA_MEDIA",
+                        "ABAIXO_DA_MEDIA",
+                        "MAIS_BARATO_QUE_TODOS"
+                      ]
                     }
                   }
                 },
@@ -292,7 +294,7 @@
                     { "name": "nosso_preco", "expression": "`nosso_preco`" },
                     { "name": "preco_medio_concorrentes", "expression": "`preco_medio_concorrentes`" },
                     { "name": "preco_minimo_concorrentes", "expression": "`preco_minimo_concorrentes`" },
-                    { "name": "diferenca_pct", "expression": "`diferenca_pct`" },
+                    { "name": "diferenca_pct_vs_media", "expression": "`diferenca_pct_vs_media`" },
                     { "name": "preco_a_confirmar", "expression": "`preco_a_confirmar`" },
                     { "name": "receita", "expression": "`receita`" }
                   ],
@@ -323,8 +325,8 @@
                     "format": { "type": "number-currency", "currencyCode": "BRL", "decimalPlaces": { "type": "exact", "places": 2 } }
                   },
                   {
-                    "fieldName": "diferenca_pct",
-                    "displayName": "Diferença (%)",
+                    "fieldName": "diferenca_pct_vs_media",
+                    "displayName": "Diferença vs. média (%)",
                     "format": { "type": "number", "decimalPlaces": { "type": "exact", "places": 2 }, "suffix": "%" }
                   },
                   { "fieldName": "preco_a_confirmar", "displayName": "Preço a confirmar" },
