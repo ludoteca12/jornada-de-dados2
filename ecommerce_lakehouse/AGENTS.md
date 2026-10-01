@@ -1,6 +1,8 @@
-# Declarative Automation Bundles Project
+# ecommerce_lakehouse
 
-This project uses Declarative Automation Bundles (DABs) for deployment. Add project-specific instructions below.
+Portfolio e-commerce analytics project on Databricks: medallion architecture (bronze → silver
+→ gold), AI/BI dashboards and Genie agents per business directorate, built as a Declarative
+Automation Bundle (DAB).
 
 ## For AI Agents: Use Databricks AI Tools
 
@@ -22,14 +24,14 @@ If the CLI is not installed, see: https://docs.databricks.com/dev-tools/cli/inst
 
 ## Project Instructions
 
-- Catálogo `jornada-de-dados` (schemas `bronze`, `silver`, `gold`). Nunca use outro catálogo.
-  Nomes de catálogo/schema hifenizados precisam de crase em SQL: `` `jornada-de-dados`.bronze.vendas ``.
+- Catálogo `ecommerce_lakehouse` (schemas `bronze`, `silver`, `gold`). Nunca use outro
+  catálogo. O nome do catálogo não tem hífen, então não precisa de crase em SQL.
 - Nomes de tabelas e colunas em português, snake_case, sem acento.
 - Silver em Python (`from pyspark import pipelines as dp`), gold em SQL.
 - Um arquivo por tabela: `transformations/silver/<tabela>.py` e `transformations/gold/<tabela>.sql`.
 - Todas as tabelas são materialized views com leitura batch (`spark.read.table`), nunca
   streaming table — a bronze é sobrescrita a cada execução.
-- Pipeline serverless, catálogo `jornada-de-dados`, schema padrão `silver`. Golds
+- Pipeline serverless, catálogo `ecommerce_lakehouse`, schema padrão `silver`. Golds
   publicadas como `gold.<tabela>`. Nomes no código sempre `schema.tabela`, sem catálogo.
 - Cada arquivo de transformação começa com um comentário explicando o PORQUÊ das regras
   (em português), não o que o código faz.
