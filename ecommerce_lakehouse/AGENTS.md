@@ -27,12 +27,18 @@ If the CLI is not installed, see: https://docs.databricks.com/dev-tools/cli/inst
 - Catálogo `ecommerce_lakehouse` (schemas `bronze`, `silver`, `gold`). Nunca use outro
   catálogo. O nome do catálogo não tem hífen, então não precisa de crase em SQL.
 - Nomes de tabelas e colunas em português, snake_case, sem acento.
-- Silver em Python (`from pyspark import pipelines as dp`), gold em SQL.
-- Um arquivo por tabela: `transformations/silver/<tabela>.py` e `transformations/gold/<tabela>.sql`.
-- Todas as tabelas são materialized views com leitura batch (`spark.read.table`), nunca
-  streaming table — a bronze é sobrescrita a cada execução.
-- Pipeline serverless, catálogo `ecommerce_lakehouse`, schema padrão `silver`. Golds
-  publicadas como `gold.<tabela>`. Nomes no código sempre `schema.tabela`, sem catálogo.
+- Bronze e silver em Python (`from pyspark import pipelines as dp`), gold em SQL.
+- Um arquivo por tabela: `transformations/<camada>/<tabela>.py|.sql`.
+- Extração (`extracao/extrair_dados.py`, task do job) baixa os arquivos do Supabase para o
+  Volume `bronze.landing`, uma subpasta por tabela. Credenciais só via secret scope
+  `ecommerce_lakehouse`, nunca em código.
+- Bronze = streaming tables com Auto Loader lendo do Volume (ingestão incremental, sem
+  limpeza, com `_arquivo_origem`/`_data_ingestao`). Silver e gold = materialized views com
+  leitura batch (`spark.read.table`), recalculadas por inteiro a cada run.
+- Pipeline serverless, catálogo `ecommerce_lakehouse`, schema padrão `silver`. Tabelas fora
+  do schema padrão SEMPRE com o schema no nome (`name="bronze.clientes"`, `gold.<tabela>`)
+  — sem isso a tabela cai em `silver` e colide com a silver de mesmo nome. Nomes no código
+  sempre `schema.tabela`, sem catálogo.
 - Cada arquivo de transformação começa com um comentário explicando o PORQUÊ das regras
   (em português), não o que o código faz.
 - Dinheiro sempre `DECIMAL(10,2)`.
@@ -43,6 +49,24 @@ If the CLI is not installed, see: https://docs.databricks.com/dev-tools/cli/inst
 - Sempre rodar `databricks bundle validate --strict` antes do deploy.
 - CLI: use `--profile dbc-b2999451-9f53` (perfil válido para
   `https://dbc-b2999451-9f53.cloud.databricks.com`).
+
+## Governança (Unity Catalog)
+
+- Objetos que precisam existir antes do primeiro deploy (catálogo, schemas, Volume de
+  landing, comentários) ficam em `governance/setup.sql` — idempotente. Schema ou Volume novo
+  entra lá, nunca criado só pela UI/CLI sem registro no repo.
+- Modelo de permissões por papel em `governance/grants.sql` (engenheiro_dados, analista_bi e
+  um grupo por diretoria, cada um lendo só a gold do próprio domínio). GRANT do Unity Catalog
+  só aceita grupos de conta (account-level): criar pela UI do workspace (Identity and access >
+  Groups) ou pela API `/api/2.0/account/scim/v2/Groups`. `databricks groups create` cria
+  grupo de workspace (legado) e não serve.
+- Entitlements dos grupos (workspace): engenheiro_dados = Workspace access + Databricks SQL
+  access; analista_bi = Databricks SQL access; diretorias = Consumer access. Nenhum com Admin.
+- Grants nunca para usuário individual, sempre para grupo.
+- Acesso aos dashboards declarado no bloco `permissions` de cada `resources/*.dashboard.yml`:
+  diretoria dona do domínio, analista_bi e engenheiro_dados com `CAN_RUN`. Ninguém recebe
+  `CAN_EDIT` — dashboard é código, edição feita pela UI é sobrescrita no próximo deploy.
+- Bronze e silver não são liberadas para consumo de negócio — diretorias e BI leem só gold.
 
 ## Convenções da camada gold (valem para todas as diretorias)
 
