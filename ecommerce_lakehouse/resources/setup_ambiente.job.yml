@@ -1,0 +1,16 @@
+# Job "Setup do ambiente": bootstrap do Unity Catalog do target (catálogo, schemas e Volume
+# de landing). Roda uma vez por ambiente, antes do primeiro run do job principal:
+#   databricks bundle run setup_ambiente -t <dev|prod>
+
+resources:
+  jobs:
+    setup_ambiente:
+      name: "Ecommerce Lakehouse - Setup do ambiente"
+
+      tasks:
+        - task_key: criar_objetos_unity_catalog
+          notebook_task:
+            notebook_path: ../governance/setup_ambiente.py
+            base_parameters:
+              catalogo: ${var.catalog}
+              ambiente: ${bundle.target}

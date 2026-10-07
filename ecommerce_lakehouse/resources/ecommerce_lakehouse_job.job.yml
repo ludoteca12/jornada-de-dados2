@@ -7,6 +7,13 @@ resources:
     ecommerce_lakehouse_job:
       name: "Ecommerce Lakehouse Pipeline"
 
+      # Diário às 6h. Declarado pausado: ativar trocando pause_status para UNPAUSED. Em dev o
+      # bundle pausa qualquer agendamento automaticamente.
+      schedule:
+        quartz_cron_expression: "0 0 6 * * ?"
+        timezone_id: America/Sao_Paulo
+        pause_status: PAUSED
+
       parameters:
         - name: catalogo
           default: ${var.catalog}
@@ -15,6 +22,8 @@ resources:
         - task_key: extrair_dados
           notebook_task:
             notebook_path: ../extracao/extrair_dados.py
+            base_parameters:
+              catalogo: "{{job.parameters.catalogo}}"
 
         - task_key: atualizar_pipeline
           depends_on:

@@ -24,8 +24,17 @@ If the CLI is not installed, see: https://docs.databricks.com/dev-tools/cli/inst
 
 ## Project Instructions
 
-- Catálogo `ecommerce_lakehouse` (schemas `bronze`, `silver`, `gold`). Nunca use outro
-  catálogo. O nome do catálogo não tem hífen, então não precisa de crase em SQL.
+- Um catálogo por ambiente, mesmos schemas (`bronze`, `silver`, `gold`) e tabelas nos dois:
+  `ecommerce_lakehouse_dev` (target `dev`, default) e `ecommerce_lakehouse` (target `prod`,
+  o único consumido por diretorias, dashboards publicados e Genie). Nunca fixar o nome do
+  catálogo em código: ele vem de `${var.catalog}` — parâmetro `catalogo` nos notebooks e
+  `spark.conf.get("catalogo")` na pipeline.
+- Desenvolver e testar sempre em dev (`-t dev`); prod só recebe deploy de código já
+  validado em dev.
+- Pipeline não troca de catálogo: o deploy aceita a mudança, mas o run falha em loop com
+  `Can not move tables across catalogs`. Para mudar o catálogo de um target, apagar a
+  pipeline e redeployar; as tabelas antigas não saem em cascata (a cascata só vale para o
+  catálogo atual) e precisam de DROP explícito.
 - Nomes de tabelas e colunas em português, snake_case, sem acento.
 - Bronze e silver em Python (`from pyspark import pipelines as dp`), gold em SQL.
 - Um arquivo por tabela: `transformations/<camada>/<tabela>.py|.sql`.
@@ -35,7 +44,7 @@ If the CLI is not installed, see: https://docs.databricks.com/dev-tools/cli/inst
 - Bronze = streaming tables com Auto Loader lendo do Volume (ingestão incremental, sem
   limpeza, com `_arquivo_origem`/`_data_ingestao`). Silver e gold = materialized views com
   leitura batch (`spark.read.table`), recalculadas por inteiro a cada run.
-- Pipeline serverless, catálogo `ecommerce_lakehouse`, schema padrão `silver`. Tabelas fora
+- Pipeline serverless, catálogo do ambiente, schema padrão `silver`. Tabelas fora
   do schema padrão SEMPRE com o schema no nome (`name="bronze.clientes"`, `gold.<tabela>`)
   — sem isso a tabela cai em `silver` e colide com a silver de mesmo nome. Nomes no código
   sempre `schema.tabela`, sem catálogo.
@@ -52,9 +61,12 @@ If the CLI is not installed, see: https://docs.databricks.com/dev-tools/cli/inst
 
 ## Governança (Unity Catalog)
 
-- Objetos que precisam existir antes do primeiro deploy (catálogo, schemas, Volume de
-  landing, comentários) ficam em `governance/setup.sql` — idempotente. Schema ou Volume novo
+- Objetos que precisam existir antes do primeiro run (catálogo, schemas, Volume de landing,
+  comentários) ficam em `governance/setup_ambiente.py`, rodado pelo job `setup_ambiente`
+  (`databricks bundle run setup_ambiente -t <dev|prod>`) — idempotente. Schema ou Volume novo
   entra lá, nunca criado só pela UI/CLI sem registro no repo.
+- `governance/grants.sql` é só de prod; o catálogo de dev não recebe grants. Grant em tabela
+  some se a tabela for recriada — rodar de novo nesse caso.
 - Modelo de permissões por papel em `governance/grants.sql` (engenheiro_dados, analista_bi e
   um grupo por diretoria, cada um lendo só a gold do próprio domínio). GRANT do Unity Catalog
   só aceita grupos de conta (account-level): criar pela UI do workspace (Identity and access >

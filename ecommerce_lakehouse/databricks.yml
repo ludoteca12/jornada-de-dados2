@@ -8,12 +8,13 @@ bundle:
 include:
   - resources/*.yml
 
-# Variable declarations. These variables are assigned in the dev/prod targets below.
+# Um catálogo por ambiente: os schemas (bronze/silver/gold) e as tabelas têm o mesmo nome em
+# dev e prod, só o catálogo muda. Diretorias e Genie só recebem acesso ao catálogo de prod.
 variables:
   catalog:
-    description: The catalog to use
+    description: Catálogo do ambiente (ecommerce_lakehouse_dev ou ecommerce_lakehouse)
   schema:
-    description: The schema to use
+    description: Schema padrão da pipeline
   warehouse_id:
     description: SQL warehouse usado pelos dashboards AI/BI
     lookup:
@@ -30,7 +31,7 @@ targets:
     workspace:
       host: https://dbc-b2999451-9f53.cloud.databricks.com
     variables:
-      catalog: ecommerce_lakehouse
+      catalog: ecommerce_lakehouse_dev
       schema: silver
   prod:
     mode: production

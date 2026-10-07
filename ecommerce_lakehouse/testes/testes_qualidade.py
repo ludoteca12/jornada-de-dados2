@@ -5,7 +5,7 @@
 # ruins cheguem na gold.
 
 # COMMAND ----------
-dbutils.widgets.text("catalogo", "ecommerce_lakehouse")
+dbutils.widgets.text("catalogo", "ecommerce_lakehouse_dev")
 catalogo = dbutils.widgets.get("catalogo")
 
 
