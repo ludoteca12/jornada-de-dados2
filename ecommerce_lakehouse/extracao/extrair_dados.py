@@ -6,7 +6,8 @@
 # diretas à API S3, sem depender de um conector de filesystem do Spark), pousando os arquivos
 # num Volume do Unity Catalog. A partir daí, a ingestão incremental de verdade (Auto Loader)
 # acontece nas tabelas bronze do pipeline Lakeflow. As credenciais nunca ficam em código:
-# vêm todas do secret scope "ecommerce_lakehouse".
+# vêm todas do secret scope "ecommerce_lakehouse", compartilhado por dev e prod (a origem é a
+# mesma). O catálogo de destino chega como parâmetro do job, um por ambiente.
 
 # COMMAND ----------
 # MAGIC %pip install --quiet boto3
@@ -20,8 +21,11 @@ import os
 import boto3
 from botocore.client import Config
 
+dbutils.widgets.text("catalogo", "ecommerce_lakehouse_dev")
+catalogo = dbutils.widgets.get("catalogo")
+
 SCOPE = "ecommerce_lakehouse"
-VOLUME_BASE = "/Volumes/ecommerce_lakehouse/bronze/landing"
+VOLUME_BASE = f"/Volumes/{catalogo}/bronze/landing"
 ARQUIVOS = ["clientes.parquet", "produtos.parquet", "vendas.parquet", "preco_competidores.parquet"]
 
 access_key = dbutils.secrets.get(SCOPE, "supabase_access_key_id")

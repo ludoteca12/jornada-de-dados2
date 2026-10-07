@@ -1,9 +1,13 @@
--- Modelo de permissões por papel para o catálogo ecommerce_lakehouse.
+-- Modelo de permissões por papel para o catálogo de PROD (ecommerce_lakehouse). O catálogo de
+-- dev (ecommerce_lakehouse_dev) não recebe grants: só quem desenvolve acessa.
+--
+-- Grant em tabela some se a tabela for recriada (destroy da pipeline, full refresh que troque
+-- o dono). Refresh normal das materialized views mantém os grants. Rode de novo nesses casos.
 --
 -- Pré-requisito: os grupos abaixo precisam existir como grupos de CONTA (account-level). Grupo
 -- de workspace (legado) não é aceito em GRANT do Unity Catalog. Em workspaces com identity
 -- federation, criar o grupo em Settings > Workspace admin > Identity and access > Groups já
--- cria um grupo de conta — veja a seção Setup do README.
+-- cria um grupo de conta, veja a seção Setup do README.
 --
 -- Para ler uma tabela são necessárias três permissões encadeadas: USE CATALOG no catálogo,
 -- USE SCHEMA no schema e SELECT na tabela (ou no schema inteiro). Permissão concedida num
@@ -28,7 +32,7 @@ GRANT ALL PRIVILEGES ON SCHEMA ecommerce_lakehouse.gold TO engenheiro_dados;
 GRANT USE CATALOG ON CATALOG ecommerce_lakehouse TO analista_bi;
 GRANT USE SCHEMA, SELECT ON SCHEMA ecommerce_lakehouse.gold TO analista_bi;
 
--- Cada diretoria lê só as tabelas gold do próprio domínio (menor privilégio).
+-- Cada diretoria lê só as tabelas gold do próprio domínio.
 GRANT USE CATALOG ON CATALOG ecommerce_lakehouse TO diretoria_comercial;
 GRANT USE SCHEMA ON SCHEMA ecommerce_lakehouse.gold TO diretoria_comercial;
 GRANT SELECT ON TABLE ecommerce_lakehouse.gold.vendas_temporais TO diretoria_comercial;

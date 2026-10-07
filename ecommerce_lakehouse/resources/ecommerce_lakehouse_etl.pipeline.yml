@@ -9,6 +9,11 @@ resources:
       serverless: true
       root_path: "../src/ecommerce_lakehouse_etl"
 
+      # Lido nas tabelas bronze (spark.conf.get) para montar o caminho do Volume de landing
+      # do ambiente.
+      configuration:
+        catalogo: ${var.catalog}
+
       libraries:
         - glob:
             include: ../src/ecommerce_lakehouse_etl/transformations/**
