@@ -1,0 +1,301 @@
+{
+  "version": 2,
+  "config": {
+    "sample_questions": [
+      {
+        "id": "0226b1bc5adb46a0ad8e4a78c4440eeb",
+        "question": [
+          "Qual a receita por categoria?"
+        ]
+      },
+      {
+        "id": "17e32ed22bea402989f31a0ed9973b06",
+        "question": [
+          "Qual foi a receita total e o ticket médio no período?"
+        ]
+      },
+      {
+        "id": "5910ae94a8cc463ca9ce1a7711491d80",
+        "question": [
+          "Quais são os 10 produtos com maior receita?"
+        ]
+      },
+      {
+        "id": "98b263cdcb494a3ea1159820a339762a",
+        "question": [
+          "Qual dia da semana tem a maior receita média?"
+        ]
+      },
+      {
+        "id": "fd6445f52cd14b7694095053a73ce192",
+        "question": [
+          "Quanto vendemos em cada canal?"
+        ]
+      }
+    ]
+  },
+  "data_sources": {
+    "tables": [
+      {
+        "identifier": "ecommerce_lakehouse.gold.vendas_detalhadas",
+        "column_configs": [
+          {
+            "column_name": "canal_venda",
+            "enable_format_assistance": true,
+            "enable_entity_matching": true
+          },
+          {
+            "column_name": "categoria",
+            "enable_format_assistance": true,
+            "enable_entity_matching": true
+          },
+          {
+            "column_name": "dia_semana",
+            "enable_format_assistance": true,
+            "enable_entity_matching": true
+          },
+          {
+            "column_name": "estado",
+            "enable_format_assistance": true,
+            "enable_entity_matching": true
+          },
+          {
+            "column_name": "marca",
+            "enable_format_assistance": true,
+            "enable_entity_matching": true
+          },
+          {
+            "column_name": "nome_produto",
+            "enable_format_assistance": true,
+            "enable_entity_matching": true
+          },
+          {
+            "column_name": "regiao",
+            "enable_format_assistance": true,
+            "enable_entity_matching": true
+          },
+          {
+            "column_name": "segmento_cliente",
+            "enable_format_assistance": true,
+            "enable_entity_matching": true
+          }
+        ]
+      },
+      {
+        "identifier": "ecommerce_lakehouse.gold.vendas_produtos",
+        "column_configs": [
+          {
+            "column_name": "categoria",
+            "enable_format_assistance": true,
+            "enable_entity_matching": true
+          },
+          {
+            "column_name": "marca",
+            "enable_format_assistance": true,
+            "enable_entity_matching": true
+          },
+          {
+            "column_name": "nome_produto",
+            "enable_format_assistance": true,
+            "enable_entity_matching": true
+          }
+        ]
+      },
+      {
+        "identifier": "ecommerce_lakehouse.gold.vendas_temporais",
+        "column_configs": [
+          {
+            "column_name": "canal_venda",
+            "enable_format_assistance": true,
+            "enable_entity_matching": true
+          },
+          {
+            "column_name": "dia_semana",
+            "enable_format_assistance": true,
+            "enable_entity_matching": true
+          }
+        ]
+      }
+    ]
+  },
+  "instructions": {
+    "text_instructions": [
+      {
+        "id": "3a60f701864d415cbbadc9a5a0b2cc96",
+        "content": [
+          "* Responda sempre em português.\n",
+          "* Período dos dados: 13/12/2025 a 11/01/2026. Nunca use current_date() nem datas fora desse intervalo.\n",
+          "* Valores monetários estão em R$ (DECIMAL). Mostre com duas casas decimais.\n",
+          "* Data e hora estão em UTC.\n",
+          "* Ticket médio é receita total dividida pelo número de vendas. Nunca calcule média de médias.\n",
+          "* Perguntas de \"quanto\" ou \"quantos\" pedem um único valor agregado (SUM/COUNT). Liste item a item só quando pedirem uma lista ou um ranking.\n",
+          "* Percentual de um grupo sobre o total: SUM(CASE WHEN <grupo> THEN valor ELSE 0 END) / SUM(valor) sobre a tabela inteira. Nunca filtre o grupo no WHERE antes de dividir pelo total — isso sempre dá 100%.\n",
+          "\n",
+          "* canal_venda tem dois valores: 'ecommerce' (E-commerce) e 'loja_fisica' (Loja física). Ao mostrar, use os nomes amigáveis.\n",
+          "* Para perguntas que cruzam produto, canal, cliente, região ou segmento, use vendas_detalhadas (uma linha por venda).\n",
+          "* clientes_unicos em vendas_temporais é COUNT DISTINCT por linha: nunca some entre linhas. Para clientes únicos, use COUNT(DISTINCT id_cliente) em vendas_detalhadas.\n",
+          "* Produto se identifica por id_produto: produtos diferentes têm o mesmo nome. Agrupe e conte sempre por id_produto.\n",
+          "* Para comparar dias da semana, use a receita MÉDIA por dia (some por data e depois tire a média por dia_semana). O período tem 5 sábados e 5 domingos e só 4 de cada dia útil, então a soma distorce.\n",
+          "* Vendas de produto não cadastrado ('Produto não cadastrado' / categoria 'Não cadastrado') são receita e entram em todos os totais."
+        ]
+      }
+    ],
+    "example_question_sqls": [
+      {
+        "id": "319ed0e2316b414d918ca50c10c9c4b8",
+        "question": [
+          "Qual a receita média por dia da semana?"
+        ],
+        "sql": [
+          "WITH por_dia AS (\n",
+          "  SELECT data, dia_semana, dia_semana_num, SUM(receita) AS receita_do_dia\n",
+          "  FROM ecommerce_lakehouse.gold.vendas_detalhadas\n",
+          "  GROUP BY data, dia_semana, dia_semana_num\n",
+          ")\n",
+          "SELECT dia_semana, ROUND(AVG(receita_do_dia), 2) AS receita_media_por_dia, COUNT(*) AS dias_no_periodo\n",
+          "FROM por_dia\n",
+          "GROUP BY dia_semana, dia_semana_num\n",
+          "ORDER BY dia_semana_num"
+        ]
+      },
+      {
+        "id": "5bae771a7c454746b1a4a8a5824eab3a",
+        "question": [
+          "Quantos clientes únicos compraram em cada canal e no total?"
+        ],
+        "sql": [
+          "SELECT\n",
+          "  COALESCE(CASE canal_venda WHEN 'ecommerce' THEN 'E-commerce' ELSE 'Loja física' END, 'Total') AS canal,\n",
+          "  COUNT(DISTINCT id_cliente) AS clientes_unicos\n",
+          "FROM ecommerce_lakehouse.gold.vendas_detalhadas\n",
+          "GROUP BY ROLLUP(canal_venda)"
+        ]
+      },
+      {
+        "id": "6f98b46f58e2405a8612abcff1266ae8",
+        "question": [
+          "Qual o ticket médio por canal?"
+        ],
+        "sql": [
+          "SELECT\n",
+          "  CASE canal_venda WHEN 'ecommerce' THEN 'E-commerce' ELSE 'Loja física' END AS canal,\n",
+          "  COUNT(*) AS vendas,\n",
+          "  SUM(receita) AS receita,\n",
+          "  ROUND(SUM(receita) / COUNT(*), 2) AS ticket_medio\n",
+          "FROM ecommerce_lakehouse.gold.vendas_detalhadas\n",
+          "GROUP BY canal_venda\n",
+          "ORDER BY receita DESC"
+        ]
+      },
+      {
+        "id": "7a4a26b810874a468f82507024d4c336",
+        "question": [
+          "Quais os 10 produtos com maior receita?"
+        ],
+        "sql": [
+          "SELECT id_produto, nome_produto, categoria, receita\n",
+          "FROM ecommerce_lakehouse.gold.vendas_produtos\n",
+          "ORDER BY receita DESC\n",
+          "LIMIT 10"
+        ]
+      }
+    ]
+  },
+  "benchmarks": {
+    "questions": [
+      {
+        "id": "0068ca8760654b789f464d24b6800353",
+        "question": [
+          "Qual dia da semana tem a maior receita média por dia?"
+        ],
+        "answer": [
+          {
+            "format": "SQL",
+            "content": [
+              "WITH por_dia AS (\n",
+              "  SELECT data, dia_semana, SUM(receita) AS receita_do_dia\n",
+              "  FROM ecommerce_lakehouse.gold.vendas_detalhadas\n",
+              "  GROUP BY data, dia_semana\n",
+              ")\n",
+              "SELECT dia_semana, ROUND(AVG(receita_do_dia), 2) AS receita_media_por_dia\n",
+              "FROM por_dia\n",
+              "GROUP BY dia_semana\n",
+              "ORDER BY receita_media_por_dia DESC\n",
+              "LIMIT 1"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "1e81d9b9b44c4e09b9b9b84ac7e2bcfd",
+        "question": [
+          "Quantos clientes únicos compraram no período?"
+        ],
+        "answer": [
+          {
+            "format": "SQL",
+            "content": [
+              "SELECT COUNT(DISTINCT id_cliente) AS clientes_unicos FROM ecommerce_lakehouse.gold.vendas_detalhadas"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "5ee6333becfd4b29938fc110ac347472",
+        "question": [
+          "Qual foi a receita total no período?"
+        ],
+        "answer": [
+          {
+            "format": "SQL",
+            "content": [
+              "SELECT SUM(receita) AS receita_total FROM ecommerce_lakehouse.gold.vendas_detalhadas"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "6e4812b3099a40caa122491f43a5206b",
+        "question": [
+          "Quantas vendas fizemos no e-commerce?"
+        ],
+        "answer": [
+          {
+            "format": "SQL",
+            "content": [
+              "SELECT COUNT(*) AS vendas FROM ecommerce_lakehouse.gold.vendas_detalhadas WHERE canal_venda = 'ecommerce'"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "9580e0e0015f4d3ca97a0a67d7f877c4",
+        "question": [
+          "Qual o ticket médio geral?"
+        ],
+        "answer": [
+          {
+            "format": "SQL",
+            "content": [
+              "SELECT ROUND(SUM(receita) / COUNT(*), 2) AS ticket_medio FROM ecommerce_lakehouse.gold.vendas_detalhadas"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "f7e2f4f3cb8548c9b683dd09df8264c5",
+        "question": [
+          "Qual produto teve a maior receita?"
+        ],
+        "answer": [
+          {
+            "format": "SQL",
+            "content": [
+              "SELECT id_produto, nome_produto, receita FROM ecommerce_lakehouse.gold.vendas_produtos ORDER BY receita DESC LIMIT 1"
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

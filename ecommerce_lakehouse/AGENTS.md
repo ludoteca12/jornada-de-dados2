@@ -27,7 +27,7 @@ If the CLI is not installed, see: https://docs.databricks.com/dev-tools/cli/inst
 - Um catálogo por ambiente, mesmos schemas (`bronze`, `silver`, `gold`) e tabelas nos dois:
   `ecommerce_lakehouse_dev` (target `dev`, default) e `ecommerce_lakehouse` (target `prod`,
   o único consumido por diretorias, dashboards publicados e Genie). Nunca fixar o nome do
-  catálogo em código: ele vem de `${var.catalog}` — parâmetro `catalogo` nos notebooks e
+  catálogo em código: ele vem de `${var.catalog}`, parâmetro `catalogo` nos notebooks e
   `spark.conf.get("catalogo")` na pipeline.
 - Desenvolver e testar sempre em dev (`-t dev`); prod só recebe deploy de código já
   validado em dev.
@@ -52,7 +52,7 @@ If the CLI is not installed, see: https://docs.databricks.com/dev-tools/cli/inst
   (em português), não o que o código faz.
 - Dinheiro sempre `DECIMAL(10,2)`.
 - Problema de qualidade conhecido é marcado em uma coluna e medido com `@dp.expect`
-  (warn). Nunca descartar linhas — ex.: apagar vendas mudaria a receita.
+  (warn). Nunca descartar linhas, ex.: apagar vendas mudaria a receita.
 - `@dp.expect_all_or_fail` só para o que nunca pode acontecer (chaves/campos
   obrigatórios, valores que sempre devem ser positivos, etc.).
 - Sempre rodar `databricks bundle validate --strict` antes do deploy.
@@ -66,7 +66,7 @@ If the CLI is not installed, see: https://docs.databricks.com/dev-tools/cli/inst
   (`databricks bundle run setup_ambiente -t <dev|prod>`) — idempotente. Schema ou Volume novo
   entra lá, nunca criado só pela UI/CLI sem registro no repo.
 - `governance/grants.sql` é só de prod; o catálogo de dev não recebe grants. Grant em tabela
-  some se a tabela for recriada — rodar de novo nesse caso.
+  some se a tabela for recriada, rodar de novo nesse caso.
 - Modelo de permissões por papel em `governance/grants.sql` (engenheiro_dados, analista_bi e
   um grupo por diretoria, cada um lendo só a gold do próprio domínio). GRANT do Unity Catalog
   só aceita grupos de conta (account-level): criar pela UI do workspace (Identity and access >
@@ -78,7 +78,7 @@ If the CLI is not installed, see: https://docs.databricks.com/dev-tools/cli/inst
 - Acesso aos dashboards declarado no bloco `permissions` de cada `resources/*.dashboard.yml`:
   diretoria dona do domínio, analista_bi e engenheiro_dados com `CAN_RUN`. Ninguém recebe
   `CAN_EDIT` — dashboard é código, edição feita pela UI é sobrescrita no próximo deploy.
-- Bronze e silver não são liberadas para consumo de negócio — diretorias e BI leem só gold.
+- Bronze e silver não são liberadas para consumo de negócio, diretorias e BI leem só gold.
 
 ## Convenções da camada gold (valem para todas as diretorias)
 
@@ -102,7 +102,7 @@ If the CLI is not installed, see: https://docs.databricks.com/dev-tools/cli/inst
   `databricks.yml`. `dataset_catalog` do recurso = `${var.catalog}`; `dataset_schema` =
   `gold`.
 - Toda query dentro do `.lvdash.json` usa nome de tabela puro (`FROM vendas_detalhadas`),
-  sem catálogo nem schema — o mesmo dashboard funciona em dev e prod.
+  sem catálogo nem schema, o mesmo dashboard funciona em dev e prod.
 - Tudo em português: título, subtítulo (com período e fonte dos dados), nomes de gráficos e
   eixos. Canal exibido como "E-commerce"/"Loja física" (o dado cru é
   `ecommerce`/`loja_fisica`, mapear com CASE na query). Dinheiro em R$.
@@ -110,15 +110,34 @@ If the CLI is not installed, see: https://docs.databricks.com/dev-tools/cli/inst
 - Regras que nenhum gráfico pode quebrar: ticket médio é receita total ÷ número de vendas,
   nunca média de médias; nunca somar `clientes_unicos` entre linhas de `vendas_temporais`;
   produto se conta por `id_produto` (nomes se repetem); dia da semana se compara pela
-  receita MÉDIA por dia (o período tem 5 sábados e 5 domingos e só 4 de cada dia útil — não
+  receita MÉDIA por dia (o período tem 5 sábados e 5 domingos e só 4 de cada dia útil, não
   dá pra comparar por soma direto). Data e hora estão em UTC: dizer isso no eixo.
   `diferenca_pct_vs_media`/`diferenca_pct_vs_minimo` (em `gold.precos_competitividade`) estão
   em pontos percentuais (10 = 10%): não usar formato de porcentagem 0-1 sem dividir por 100
   antes.
 
+## Convenções dos Genie Spaces (agente por diretoria)
+
+- Um espaço por diretoria: `src/genie/<nome>.json` (serialized space), declarado em
+  `resources/genie_spaces.yml` só no target `prod`. É a única exceção à regra de não fixar
+  catálogo: o arquivo do Genie não aceita variáveis do bundle, então as tabelas usam o nome
+  completo `ecommerce_lakehouse.gold.<tabela>`.
+- Cada espaço só inclui tabelas que a diretoria tem GRANT para ler, o Genie consulta com a
+  identidade de quem pergunta. Permissões: diretoria dona, analista_bi e engenheiro_dados com
+  `CAN_RUN`.
+- Conteúdo: instruções de negócio (mesmas regras dos dashboards), perguntas de exemplo, SQLs
+  de exemplo confiáveis e benchmarks com a resposta esperada. Todo SQL de exemplo/benchmark é
+  executado no warehouse antes do deploy.
+- O Genie não é determinístico: mesma pergunta pode sair certa ou errada. Validar com
+  `databricks genie genie-create-eval-run <space_id>` (meta: todos os benchmarks GOOD) e
+  repetir ao vivo (`databricks genie start-conversation`) as perguntas sensíveis. Erro de
+  cálculo se corrige com instrução + SQL de exemplo explícitos, não só com benchmark (o
+  benchmark só mede, não ensina).
+- Toda mudança de instrução: rodar a avaliação de novo nos três espaços.
+
 ## Números de referência (conferidos por SQL direto após cada prompt)
 
-Período dos dados: 13/12/2025 a 11/01/2026. Esses números servem de regressão — se uma
+Período dos dados: 13/12/2025 a 11/01/2026. Esses números servem de regressão, se uma
 mudança futura na bronze/silver/gold fizer algum deles sair do lugar, investigar antes de
 seguir.
 
@@ -134,8 +153,11 @@ seguir.
 - **Prompt 4 (`gold.precos_competitividade`)**: 215 produtos monitorados; 35
   `MAIS_CARO_QUE_TODOS`, dos quais 20 confirmados (sem preço suspeito, R$ 161.375,09 de
   receita) e 15 com preço suspeito (categoria Tênis, sem nenhuma venda, +100% acima da média
-  do mercado — produto com preço suspeito continua em todas as contas, só precisa ser
+  do mercado, produto com preço suspeito continua em todas as contas, só precisa ser
   conferido); 6 `MAIS_BARATO_QUE_TODOS`; excluindo os suspeitos, Beleza é a categoria mais
   cara (+1,24% vs. média dos concorrentes).
 - **Prompt 5 (dashboards AI/BI)**: 3 dashboards publicados (Diretoria Comercial, Diretoria de
   Customer Success, Diretoria de Pricing), todos conferidos contra os mesmos números acima.
+- **Genie Spaces**: 18/18 benchmarks GOOD (6 por espaço). Perguntas sensíveis estáveis em
+  3 repetições ao vivo: % da receita VIP = 27,0%; 35 produtos mais caros que todos (com aviso
+  dos 15 suspeitos); receita dos confirmados = R$ 161.375,09.

@@ -1,0 +1,54 @@
+# Genie Spaces (agente de IA por diretoria): perguntas em português viram SQL sobre a gold da
+# diretoria. Só existem em prod: são a camada de consumo de negócio, e o arquivo serializado do
+# Genie não aceita variáveis do bundle, então os nomes das tabelas já apontam para o catálogo
+# de prod. O Genie consulta com a identidade de quem pergunta, por isso cada espaço só inclui
+# tabelas que a diretoria tem GRANT para ler (governance/grants.sql).
+
+targets:
+  prod:
+    resources:
+      genie_spaces:
+        diretoria_comercial:
+          title: "Diretoria Comercial"
+          description: >-
+            Pergunte sobre vendas: receita, ticket médio, canais, produtos, categorias, dias e
+            horários. Período: 13/12/2025 a 11/01/2026.
+          warehouse_id: ${var.warehouse_id}
+          file_path: ../src/genie/diretoria_comercial.json
+          permissions:
+            - group_name: diretoria_comercial
+              level: CAN_RUN
+            - group_name: analista_bi
+              level: CAN_RUN
+            - group_name: engenheiro_dados
+              level: CAN_RUN
+
+        diretoria_customer_success:
+          title: "Diretoria de Customer Success"
+          description: >-
+            Pergunte sobre a carteira de clientes: segmentos (VIP, TOP_TIER, REGULAR), maiores
+            clientes, regiões e ticket médio. Período: 13/12/2025 a 11/01/2026.
+          warehouse_id: ${var.warehouse_id}
+          file_path: ../src/genie/diretoria_customer_success.json
+          permissions:
+            - group_name: diretoria_cs
+              level: CAN_RUN
+            - group_name: analista_bi
+              level: CAN_RUN
+            - group_name: engenheiro_dados
+              level: CAN_RUN
+
+        diretoria_pricing:
+          title: "Diretoria de Pricing"
+          description: >-
+            Pergunte sobre competitividade de preço: onde estamos mais caros que Mercado Livre,
+            Amazon, Magalu e Shopee, separando preço confirmado de preço suspeito.
+          warehouse_id: ${var.warehouse_id}
+          file_path: ../src/genie/diretoria_pricing.json
+          permissions:
+            - group_name: diretoria_pricing
+              level: CAN_RUN
+            - group_name: analista_bi
+              level: CAN_RUN
+            - group_name: engenheiro_dados
+              level: CAN_RUN

@@ -9,6 +9,7 @@ medalhão (bronze → silver → gold), dashboards AI/BI e agentes Genie por dir
 * `extracao/`: extração dos arquivos de origem (bucket S3-compatível do Supabase) para o Volume de landing.
 * `src/ecommerce_lakehouse_etl/transformations/`: pipeline Lakeflow (bronze via Auto Loader e silver em Python, gold em SQL).
 * `src/dashboards/`: dashboards AI/BI (Lakeview), um por diretoria.
+* `src/genie/`: Genie Spaces (agente de IA por diretoria) como código, só em prod.
 * `resources/`: definição dos recursos do bundle (pipeline, job, dashboards).
 * `governance/`: bootstrap do Unity Catalog e modelo de permissões por papel.
 * `testes/`: notebook de testes de qualidade, roda depois do pipeline.
@@ -16,7 +17,7 @@ medalhão (bronze → silver → gold), dashboards AI/BI e agentes Genie por dir
 
 ## Ambientes
 
-Um catálogo por ambiente, com os mesmos schemas e tabelas nos dois — só o catálogo muda:
+Um catálogo por ambiente, com os mesmos schemas e tabelas nos dois, só o catálogo muda:
 
 | Target | Catálogo | Uso |
 |---|---|---|
@@ -39,7 +40,7 @@ O job principal tem agendamento diário às 6h declarado, mas pausado (`pause_st
    ```
 
 2. Crie os grupos de conta em Settings > Workspace admin > Identity and access > Groups (em
-   workspaces com identity federation, isso já cria grupo de conta — o único tipo aceito pelo
+   workspaces com identity federation, isso já cria grupo de conta, o único tipo aceito pelo
    Unity Catalog), com os entitlements:
 
    | Grupo | Entitlements |
@@ -69,6 +70,30 @@ em tabela some se a tabela for recriada; refresh normal mantém. O acesso dos gr
 dashboards é aplicado pelo próprio deploy (bloco `permissions` em `resources/*.dashboard.yml`).
 O uso do SQL warehouse vem do grupo padrão `users`; se ele for restringido, conceda `CAN_USE`
 aos grupos com `databricks warehouses update-permissions`.
+
+## Agentes por diretoria (Genie)
+
+Cada diretoria tem um Genie Space: a pessoa pergunta em português e o agente gera e executa
+o SQL sobre a gold do próprio domínio.
+
+| Agente | Tabelas | Quem usa |
+|---|---|---|
+| Diretoria Comercial | `vendas_temporais`, `vendas_produtos`, `vendas_detalhadas` | `diretoria_comercial` |
+| Diretoria de Customer Success | `clientes_segmentacao` | `diretoria_cs` |
+| Diretoria de Pricing | `precos_competitividade` | `diretoria_pricing` |
+
+Os espaços são código (`src/genie/*.json`, recurso `genie_spaces` no bundle) e carregam as
+mesmas regras de negócio dos dashboards, ticket médio sem média de médias, receita média
+por dia da semana, preço suspeito que continua nas contas mas sempre com aviso, além de SQLs
+de exemplo e benchmarks com a resposta esperada.
+
+**Avaliação:** `databricks genie genie-create-eval-run <space_id>` roda os benchmarks.
+Resultado atual: 18/18 corretos. A primeira rodada pegou dois erros reais do agente (percentual
+VIP calculado sobre o próprio grupo filtrado, dando 100%; contagem de produtos tirando os
+suspeitos), corrigidos com instruções e SQLs de exemplo explícitos.
+
+O Genie consulta com a identidade de quem pergunta, então os grants do Unity Catalog valem
+também aqui: cada espaço só inclui tabelas que a diretoria pode ler.
 
 ## Governança e auditoria
 

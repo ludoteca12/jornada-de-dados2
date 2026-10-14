@@ -1,0 +1,245 @@
+{
+  "version": 2,
+  "config": {
+    "sample_questions": [
+      {
+        "id": "3110c6dfdc58453bbe209918a1a77257",
+        "question": [
+          "Quantos produtos têm preço suspeito para conferir?"
+        ]
+      },
+      {
+        "id": "7cd918fe98744eb8a7a11ec3f17e36fb",
+        "question": [
+          "Quantos produtos estão mais caros que todos os concorrentes?"
+        ]
+      },
+      {
+        "id": "97ab8f3d28414e158698dec073b8f3a3",
+        "question": [
+          "Como se distribuem os produtos por classificação de preço?"
+        ]
+      },
+      {
+        "id": "bf800550834449ad9aac562ee69c1756",
+        "question": [
+          "Quais produtos confirmados mais caros que todos têm maior receita?"
+        ]
+      },
+      {
+        "id": "c2d180b647dc46dfb13cdf44191075bb",
+        "question": [
+          "Qual categoria está mais cara em relação ao mercado, sem os suspeitos?"
+        ]
+      }
+    ]
+  },
+  "data_sources": {
+    "tables": [
+      {
+        "identifier": "ecommerce_lakehouse.gold.precos_competitividade",
+        "column_configs": [
+          {
+            "column_name": "categoria",
+            "enable_format_assistance": true,
+            "enable_entity_matching": true
+          },
+          {
+            "column_name": "classificacao_preco",
+            "enable_format_assistance": true,
+            "enable_entity_matching": true
+          },
+          {
+            "column_name": "marca",
+            "enable_format_assistance": true,
+            "enable_entity_matching": true
+          },
+          {
+            "column_name": "nome_produto",
+            "enable_format_assistance": true,
+            "enable_entity_matching": true
+          }
+        ]
+      }
+    ]
+  },
+  "instructions": {
+    "text_instructions": [
+      {
+        "id": "018124ddfb284eb9bfe9c19488bb393a",
+        "content": [
+          "* Responda sempre em português.\n",
+          "* Período dos dados: 13/12/2025 a 11/01/2026. Nunca use current_date() nem datas fora desse intervalo.\n",
+          "* Valores monetários estão em R$ (DECIMAL). Mostre com duas casas decimais.\n",
+          "* Data e hora estão em UTC.\n",
+          "* Ticket médio é receita total dividida pelo número de vendas. Nunca calcule média de médias.\n",
+          "* Perguntas de \"quanto\" ou \"quantos\" pedem um único valor agregado (SUM/COUNT). Liste item a item só quando pedirem uma lista ou um ranking.\n",
+          "* Percentual de um grupo sobre o total: SUM(CASE WHEN <grupo> THEN valor ELSE 0 END) / SUM(valor) sobre a tabela inteira. Nunca filtre o grupo no WHERE antes de dividir pelo total — isso sempre dá 100%.\n",
+          "\n",
+          "* precos_competitividade tem uma linha por produto monitorado, comparando nosso preço com os concorrentes (Mercado Livre, Amazon, Magalu e Shopee). Não há detalhe por concorrente, só média, mínimo, máximo e total de coletas.\n",
+          "* diferenca_pct_vs_media e diferenca_pct_vs_minimo estão em PONTOS PERCENTUAIS: 10 significa 10% mais caro. Mostre com o símbolo %, sem multiplicar por 100.\n",
+          "* classificacao_preco: MAIS_CARO_QUE_TODOS, MAIS_BARATO_QUE_TODOS, ACIMA_DA_MEDIA, ABAIXO_DA_MEDIA, NA_MEDIA.\n",
+          "* possui_preco_suspeito = true indica coleta suspeita (erro de coleta ou promoção relâmpago). Por padrão o produto CONTINUA em todas as contagens, totais e médias — não filtre suspeitos a menos que a pergunta peça.\n",
+          "* Sempre que a resposta incluir produtos com preço suspeito, informe quantos são e avise que o preço precisa ser conferido antes de agir.\n",
+          "* \"Confirmado\" significa possui_preco_suspeito = false. Filtre só confirmados quando a pergunta disser \"confirmado\", \"sem suspeitos\" ou pedir recomendação de ação.\n",
+          "* receita e itens_vendidos são 0 quando o produto nunca foi vendido."
+        ]
+      }
+    ],
+    "example_question_sqls": [
+      {
+        "id": "8fe41911681a4a35a58f0d9ec61c0331",
+        "question": [
+          "Quantos produtos estão mais caros que todos os concorrentes, e quantos deles têm preço suspeito?"
+        ],
+        "sql": [
+          "SELECT COUNT(*) AS mais_caros_que_todos,\n",
+          "  SUM(CASE WHEN possui_preco_suspeito THEN 1 ELSE 0 END) AS com_preco_suspeito,\n",
+          "  SUM(CASE WHEN NOT possui_preco_suspeito THEN 1 ELSE 0 END) AS confirmados\n",
+          "FROM ecommerce_lakehouse.gold.precos_competitividade\n",
+          "WHERE classificacao_preco = 'MAIS_CARO_QUE_TODOS'"
+        ]
+      },
+      {
+        "id": "9bac01bb387e4701ae6b82dfa7894ef2",
+        "question": [
+          "Como se distribuem os produtos por classificação, separando confirmados e suspeitos?"
+        ],
+        "sql": [
+          "SELECT classificacao_preco,\n",
+          "  SUM(CASE WHEN NOT possui_preco_suspeito THEN 1 ELSE 0 END) AS confirmados,\n",
+          "  SUM(CASE WHEN possui_preco_suspeito THEN 1 ELSE 0 END) AS a_conferir\n",
+          "FROM ecommerce_lakehouse.gold.precos_competitividade\n",
+          "GROUP BY classificacao_preco\n",
+          "ORDER BY CASE classificacao_preco WHEN 'MAIS_CARO_QUE_TODOS' THEN 1 WHEN 'ACIMA_DA_MEDIA' THEN 2\n",
+          "  WHEN 'NA_MEDIA' THEN 3 WHEN 'ABAIXO_DA_MEDIA' THEN 4 ELSE 5 END"
+        ]
+      },
+      {
+        "id": "ac05cd7df11b4fedbf88729d4afa8e30",
+        "question": [
+          "Qual a diferença média para o mercado por categoria, sem suspeitos?"
+        ],
+        "sql": [
+          "SELECT categoria, ROUND(AVG(diferenca_pct_vs_media), 2) AS diferenca_media_pp, COUNT(*) AS produtos\n",
+          "FROM ecommerce_lakehouse.gold.precos_competitividade\n",
+          "WHERE NOT possui_preco_suspeito\n",
+          "GROUP BY categoria\n",
+          "ORDER BY diferenca_media_pp DESC"
+        ]
+      },
+      {
+        "id": "c89708bb32864d4aa6dc36963bc89f02",
+        "question": [
+          "Quais produtos mais caros que todos os concorrentes devo priorizar?"
+        ],
+        "sql": [
+          "SELECT nome_produto, categoria, nosso_preco, preco_medio_concorrentes, preco_minimo_concorrentes,\n",
+          "  diferenca_pct_vs_media, receita\n",
+          "FROM ecommerce_lakehouse.gold.precos_competitividade\n",
+          "WHERE classificacao_preco = 'MAIS_CARO_QUE_TODOS' AND NOT possui_preco_suspeito\n",
+          "ORDER BY receita DESC"
+        ]
+      },
+      {
+        "id": "e6aa41bc348c47a8ad6dd9d40386b91b",
+        "question": [
+          "Qual a receita total dos produtos confirmados mais caros que todos os concorrentes?"
+        ],
+        "sql": [
+          "SELECT SUM(receita) AS receita\n",
+          "FROM ecommerce_lakehouse.gold.precos_competitividade\n",
+          "WHERE classificacao_preco = 'MAIS_CARO_QUE_TODOS' AND NOT possui_preco_suspeito"
+        ]
+      }
+    ]
+  },
+  "benchmarks": {
+    "questions": [
+      {
+        "id": "5199c02f5af746d480718ed7496311de",
+        "question": [
+          "Qual a receita dos produtos confirmados mais caros que todos os concorrentes?"
+        ],
+        "answer": [
+          {
+            "format": "SQL",
+            "content": [
+              "SELECT SUM(receita) AS receita FROM ecommerce_lakehouse.gold.precos_competitividade WHERE classificacao_preco = 'MAIS_CARO_QUE_TODOS' AND NOT possui_preco_suspeito"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "6e27940ffff34deca83bd9d61bf76a6c",
+        "question": [
+          "Quantos produtos são monitorados?"
+        ],
+        "answer": [
+          {
+            "format": "SQL",
+            "content": [
+              "SELECT COUNT(*) AS produtos FROM ecommerce_lakehouse.gold.precos_competitividade"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "975dff3aadfa4630b81b725b4d2d1bff",
+        "question": [
+          "Quantos produtos mais caros que todos os concorrentes estão confirmados?"
+        ],
+        "answer": [
+          {
+            "format": "SQL",
+            "content": [
+              "SELECT COUNT(*) AS produtos FROM ecommerce_lakehouse.gold.precos_competitividade WHERE classificacao_preco = 'MAIS_CARO_QUE_TODOS' AND NOT possui_preco_suspeito"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "97fe762d938d4d3486ffc619c3e43829",
+        "question": [
+          "Quantos produtos têm preço suspeito?"
+        ],
+        "answer": [
+          {
+            "format": "SQL",
+            "content": [
+              "SELECT COUNT(*) AS produtos FROM ecommerce_lakehouse.gold.precos_competitividade WHERE possui_preco_suspeito"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "9fc7282b4a1f4c7b8ad933afa8a340b4",
+        "question": [
+          "Quantos produtos estão mais caros que todos os concorrentes?"
+        ],
+        "answer": [
+          {
+            "format": "SQL",
+            "content": [
+              "SELECT COUNT(*) AS produtos FROM ecommerce_lakehouse.gold.precos_competitividade WHERE classificacao_preco = 'MAIS_CARO_QUE_TODOS'"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "ecc9b6451c794109b032ab5e5fe7d83e",
+        "question": [
+          "Qual categoria está mais cara que o mercado, sem considerar suspeitos?"
+        ],
+        "answer": [
+          {
+            "format": "SQL",
+            "content": [
+              "SELECT categoria, ROUND(AVG(diferenca_pct_vs_media), 2) AS diferenca_media_pp FROM ecommerce_lakehouse.gold.precos_competitividade WHERE NOT possui_preco_suspeito GROUP BY categoria ORDER BY diferenca_media_pp DESC LIMIT 1"
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}
