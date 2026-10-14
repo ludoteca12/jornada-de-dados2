@@ -1,0 +1,232 @@
+{
+  "version": 2,
+  "config": {
+    "sample_questions": [
+      {
+        "id": "2fa9de82f1ef4ddfa58fd823b8a4e458",
+        "question": [
+          "Qual o ticket médio por segmento?"
+        ]
+      },
+      {
+        "id": "33bd923015424f65b355ec56c7fefb5c",
+        "question": [
+          "Quem são os 10 maiores clientes por receita?"
+        ]
+      },
+      {
+        "id": "55c72d5e783a4d6a913009aca9be22c3",
+        "question": [
+          "Quantos clientes VIP temos?"
+        ]
+      },
+      {
+        "id": "aae4c44f0962433eae90f151e9e07d50",
+        "question": [
+          "Qual região tem a maior receita?"
+        ]
+      },
+      {
+        "id": "efcf1bcec6de4e228da77b366670abc4",
+        "question": [
+          "Qual percentual da receita vem dos clientes VIP?"
+        ]
+      }
+    ]
+  },
+  "data_sources": {
+    "tables": [
+      {
+        "identifier": "ecommerce_lakehouse.gold.clientes_segmentacao",
+        "column_configs": [
+          {
+            "column_name": "estado",
+            "enable_format_assistance": true,
+            "enable_entity_matching": true
+          },
+          {
+            "column_name": "nome_cliente",
+            "enable_format_assistance": true,
+            "enable_entity_matching": true
+          },
+          {
+            "column_name": "nome_estado",
+            "enable_format_assistance": true,
+            "enable_entity_matching": true
+          },
+          {
+            "column_name": "regiao",
+            "enable_format_assistance": true,
+            "enable_entity_matching": true
+          },
+          {
+            "column_name": "segmento_cliente",
+            "enable_format_assistance": true,
+            "enable_entity_matching": true
+          }
+        ]
+      }
+    ]
+  },
+  "instructions": {
+    "text_instructions": [
+      {
+        "id": "b3a69da3325044118877115c9612d9a0",
+        "content": [
+          "* Responda sempre em português.\n",
+          "* Período dos dados: 13/12/2025 a 11/01/2026. Nunca use current_date() nem datas fora desse intervalo.\n",
+          "* Valores monetários estão em R$ (DECIMAL). Mostre com duas casas decimais.\n",
+          "* Data e hora estão em UTC.\n",
+          "* Ticket médio é receita total dividida pelo número de vendas. Nunca calcule média de médias.\n",
+          "* Perguntas de \"quanto\" ou \"quantos\" pedem um único valor agregado (SUM/COUNT). Liste item a item só quando pedirem uma lista ou um ranking.\n",
+          "* Percentual de um grupo sobre o total: SUM(CASE WHEN <grupo> THEN valor ELSE 0 END) / SUM(valor) sobre a tabela inteira. Nunca filtre o grupo no WHERE antes de dividir pelo total — isso sempre dá 100%.\n",
+          "\n",
+          "* clientes_segmentacao tem uma linha por cliente cadastrado, inclusive quem nunca comprou (total_compras = 0, receita = 0).\n",
+          "* segmento_cliente: VIP (receita a partir de R$ 22.000), TOP_TIER (R$ 17.000 até R$ 21.999,99) e REGULAR (abaixo de R$ 17.000). Ao listar segmentos, use a ordem VIP, TOP_TIER, REGULAR.\n",
+          "* Ticket médio da carteira ou de um grupo = SUM(receita) / SUM(total_compras). Nunca use AVG(ticket_medio): é média de médias.\n",
+          "* nome_cliente já vem sem pronome de tratamento (Sr., Sra., Dr. etc.).\n",
+          "* ranking_receita: 1 = cliente de maior receita.\n",
+          "* regiao segue o IBGE: Norte, Nordeste, Centro-Oeste, Sudeste, Sul."
+        ]
+      }
+    ],
+    "example_question_sqls": [
+      {
+        "id": "26811bd8a90742d196d5616740494cf7",
+        "question": [
+          "Qual o ticket médio por segmento?"
+        ],
+        "sql": [
+          "SELECT segmento_cliente, COUNT(*) AS clientes, SUM(receita) AS receita,\n",
+          "  ROUND(SUM(receita) / NULLIF(SUM(total_compras), 0), 2) AS ticket_medio\n",
+          "FROM ecommerce_lakehouse.gold.clientes_segmentacao\n",
+          "GROUP BY segmento_cliente\n",
+          "ORDER BY CASE segmento_cliente WHEN 'VIP' THEN 1 WHEN 'TOP_TIER' THEN 2 ELSE 3 END"
+        ]
+      },
+      {
+        "id": "b372df3826394056aec86e94e9a3234d",
+        "question": [
+          "Qual percentual da receita vem dos clientes VIP?"
+        ],
+        "sql": [
+          "SELECT ROUND(100 * SUM(CASE WHEN segmento_cliente = 'VIP' THEN receita ELSE 0 END) / SUM(receita), 1) AS pct_receita_vip\n",
+          "FROM ecommerce_lakehouse.gold.clientes_segmentacao"
+        ]
+      },
+      {
+        "id": "d7324d7d9cd541529786254d0c1256ed",
+        "question": [
+          "Quem são os 10 maiores clientes?"
+        ],
+        "sql": [
+          "SELECT ranking_receita, nome_cliente, estado, regiao, segmento_cliente, total_compras, receita, ultima_compra\n",
+          "FROM ecommerce_lakehouse.gold.clientes_segmentacao\n",
+          "ORDER BY ranking_receita\n",
+          "LIMIT 10"
+        ]
+      },
+      {
+        "id": "f428f2c205874b3a8e9438be1bc0e9d2",
+        "question": [
+          "Qual percentual da receita vem de cada segmento?"
+        ],
+        "sql": [
+          "SELECT segmento_cliente,\n",
+          "  ROUND(100 * SUM(receita) / SUM(SUM(receita)) OVER (), 1) AS pct_receita\n",
+          "FROM ecommerce_lakehouse.gold.clientes_segmentacao\n",
+          "GROUP BY segmento_cliente\n",
+          "ORDER BY CASE segmento_cliente WHEN 'VIP' THEN 1 WHEN 'TOP_TIER' THEN 2 ELSE 3 END"
+        ]
+      }
+    ]
+  },
+  "benchmarks": {
+    "questions": [
+      {
+        "id": "2b67a0caaaa647d28432e1d05b5f5c27",
+        "question": [
+          "Quantos clientes temos?"
+        ],
+        "answer": [
+          {
+            "format": "SQL",
+            "content": [
+              "SELECT COUNT(*) AS clientes FROM ecommerce_lakehouse.gold.clientes_segmentacao"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "2e0ddeab472f4911b2f01d362aadb496",
+        "question": [
+          "Qual o ticket médio da carteira?"
+        ],
+        "answer": [
+          {
+            "format": "SQL",
+            "content": [
+              "SELECT ROUND(SUM(receita) / SUM(total_compras), 2) AS ticket_medio FROM ecommerce_lakehouse.gold.clientes_segmentacao"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "41a45e360a0f45efa0989a94c14a939a",
+        "question": [
+          "Quantos clientes VIP temos?"
+        ],
+        "answer": [
+          {
+            "format": "SQL",
+            "content": [
+              "SELECT COUNT(*) AS clientes_vip FROM ecommerce_lakehouse.gold.clientes_segmentacao WHERE segmento_cliente = 'VIP'"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "802f7dfc270b433aba2cd9d41bc419ea",
+        "question": [
+          "Qual percentual da receita vem dos clientes VIP?"
+        ],
+        "answer": [
+          {
+            "format": "SQL",
+            "content": [
+              "SELECT ROUND(100 * SUM(CASE WHEN segmento_cliente = 'VIP' THEN receita ELSE 0 END) / SUM(receita), 1) AS pct_receita_vip FROM ecommerce_lakehouse.gold.clientes_segmentacao"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "924710de6da642b19c0f5b61718c1ffc",
+        "question": [
+          "Quem é o cliente de maior receita?"
+        ],
+        "answer": [
+          {
+            "format": "SQL",
+            "content": [
+              "SELECT nome_cliente, estado, receita FROM ecommerce_lakehouse.gold.clientes_segmentacao ORDER BY ranking_receita LIMIT 1"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "c0c2278d106d4def941ee1a7c606cb8c",
+        "question": [
+          "Qual região tem a maior receita?"
+        ],
+        "answer": [
+          {
+            "format": "SQL",
+            "content": [
+              "SELECT regiao, SUM(receita) AS receita FROM ecommerce_lakehouse.gold.clientes_segmentacao GROUP BY regiao ORDER BY receita DESC LIMIT 1"
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}
