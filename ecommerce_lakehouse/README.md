@@ -1,10 +1,7 @@
-# ecommerce_lakehouse
+# ecommerce_lakehouse — guia técnico
 
-Projeto de portfólio: pipeline de analytics de e-commerce no Databricks, arquitetura
-medalhão (bronze → silver → gold), dashboards AI/BI e agentes Genie por diretoria de negócio.
-
-> A versão completa deste README (arquitetura, narrativa de negócio, prints dos dashboards)
-> chega na fase de polimento do portfólio.
+Setup, operação e governança do bundle. A visão geral do projeto (problema de negócio,
+arquitetura e decisões) está no [README da raiz](../README.md).
 
 * `extracao/`: extração dos arquivos de origem (bucket S3-compatível do Supabase) para o Volume de landing.
 * `src/ecommerce_lakehouse_etl/transformations/`: pipeline Lakeflow (bronze via Auto Loader e silver em Python, gold em SQL).
@@ -13,6 +10,7 @@ medalhão (bronze → silver → gold), dashboards AI/BI e agentes Genie por dir
 * `resources/`: definição dos recursos do bundle (pipeline, job, dashboards).
 * `governance/`: bootstrap do Unity Catalog e modelo de permissões por papel.
 * `testes/`: notebook de testes de qualidade, roda depois do pipeline.
+* `seed/`: os 4 arquivos parquet de origem (clientes, produtos, vendas, preco_competidores).
 * `AGENTS.md`: convenções do projeto (catálogo, nomenclatura, regras de negócio).
 
 ## Ambientes
@@ -28,7 +26,10 @@ O job principal tem agendamento diário às 6h declarado, mas pausado (`pause_st
 
 ## Setup (uma vez por workspace)
 
-1. Crie o secret scope com as credenciais S3 do Supabase (compartilhado pelos dois ambientes):
+1. Suba os 4 arquivos de `seed/` na raiz de um bucket S3-compatível (Supabase Storage com o
+   protocolo S3 habilitado, ou equivalente). A extração procura exatamente esses nomes.
+
+2. Crie o secret scope com as credenciais S3 do bucket (compartilhado pelos dois ambientes):
 
    ```bash
    databricks secrets create-scope ecommerce_lakehouse
@@ -39,7 +40,7 @@ O job principal tem agendamento diário às 6h declarado, mas pausado (`pause_st
    databricks secrets put-secret ecommerce_lakehouse supabase_bucket --string-value "..."
    ```
 
-2. Crie os grupos de conta em Settings > Workspace admin > Identity and access > Groups (em
+3. Crie os grupos de conta em Settings > Workspace admin > Identity and access > Groups (em
    workspaces com identity federation, isso já cria grupo de conta, o único tipo aceito pelo
    Unity Catalog), com os entitlements:
 
@@ -88,9 +89,10 @@ por dia da semana, preço suspeito que continua nas contas mas sempre com aviso,
 de exemplo e benchmarks com a resposta esperada.
 
 **Avaliação:** `databricks genie genie-create-eval-run <space_id>` roda os benchmarks.
-Resultado atual: 18/18 corretos. A primeira rodada pegou dois erros reais do agente (percentual
-VIP calculado sobre o próprio grupo filtrado, dando 100%; contagem de produtos tirando os
-suspeitos), corrigidos com instruções e SQLs de exemplo explícitos.
+Resultado atual: 18/18 corretos. A primeira rodada pegou três erros reais do agente
+(percentual VIP calculado sobre o próprio grupo filtrado, dando 100%; contagem de produtos
+tirando os suspeitos; lista de produtos no lugar do total de receita), corrigidos com
+instruções e SQLs de exemplo explícitos.
 
 O Genie consulta com a identidade de quem pergunta, então os grants do Unity Catalog valem
 também aqui: cada espaço só inclui tabelas que a diretoria pode ler.
@@ -107,7 +109,8 @@ têm `CAN_RUN` em todos. Os dashboards consultam com a identidade de quem está 
 
 **Teste de bloqueio:** um service principal membro apenas de `diretoria_cs` leu
 `gold.clientes_segmentacao` (50 linhas) e recebeu `INSUFFICIENT_PRIVILEGES` em
-`gold.vendas_detalhadas` e em `silver.vendas`.
+`gold.vendas_detalhadas` (sem SELECT), em `silver.vendas` (sem USE SCHEMA) e no catálogo de
+dev (sem USE CATALOG).
 
 Documentação das tabelas (os comentários de cada coluna explicam unidade e regra de cálculo):
 
