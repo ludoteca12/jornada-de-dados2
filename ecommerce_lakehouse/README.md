@@ -65,7 +65,21 @@ O `<perfil>` é o nome que você escolher no login; ele é passado em todos os c
    `preco_competidores.parquet`.
 3. Em **Storage → S3 Connection**, habilite o protocolo S3 e anote o **Endpoint**
    (`https://<project-ref>.supabase.co/storage/v1/s3`) e a **Region**.
-4. Na mesma tela, gere uma **access key**. A secret só aparece uma vez.
+4. Na mesma tela, em **S3 Access Keys**, clique em **New access key**. O Supabase mostra o
+   **Access key ID** e o **Secret access key**. A secret só aparece uma vez: copie na hora.
+
+Onde está cada valor que vira secret no próximo passo:
+
+| Secret | Onde encontrar no Supabase | Exemplo |
+|---|---|---|
+| `supabase_bucket` | Nome que você deu ao bucket no passo 1 (lista em **Storage**) | `ecommerce-dados` |
+| `supabase_endpoint_url` | **Storage → S3 Connection → Endpoint** | `https://abcdefghijkl.supabase.co/storage/v1/s3` |
+| `supabase_region` | **Storage → S3 Connection → Region**. É a região escolhida ao criar o projeto. | `sa-east-1` |
+| `supabase_access_key_id` | **Access key ID** gerado no passo 4 | sequência de letras e números |
+| `supabase_secret_access_key` | **Secret access key** gerado no passo 4 (só aparece na criação; se perder, gere outra chave) | sequência longa de letras e números |
+
+O `<project-ref>` do endpoint é o identificador do projeto. Ele também aparece na URL do painel
+(`supabase.com/dashboard/project/<project-ref>`) e em **Project Settings → General**.
 
 Projetos gratuitos do Supabase pausam após 7 dias sem uso. Se a extração falhar por conexão,
 restaure o projeto no painel.
