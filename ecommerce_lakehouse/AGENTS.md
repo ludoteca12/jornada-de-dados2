@@ -1,28 +1,11 @@
-# ecommerce_lakehouse
+# AGENTS.md — convenções do ecommerce_lakehouse
 
-Portfolio e-commerce analytics project on Databricks: medallion architecture (bronze → silver
-→ gold), AI/BI dashboards and Genie agents per business directorate, built as a Declarative
-Automation Bundle (DAB).
+Contrato de convenções e regras de negócio do projeto. Vale para qualquer contribuição,
+humana ou de agente de IA (o `CLAUDE.md` só importa este arquivo). Agentes com as Databricks
+AI Tools instaladas (`databricks aitools install`) devem carregar a skill `databricks-core`
+antes de operar a CLI.
 
-## For AI Agents: Use Databricks AI Tools
-
-**BEFORE any other action, read the `databricks-core` skill.**
-
-It sets you up to work with this project reliably: CLI authentication, profile
-selection, data discovery, and the bundle deployment workflow. Without it,
-results are often slower and less accurate.
-
-If this skill is not available (Databricks AI Tools are not installed), you can install them for your coding agent in seconds:
-
-```bash
-databricks aitools install
-```
-
-If the CLI is not installed, see: https://docs.databricks.com/dev-tools/cli/install
-
----
-
-## Project Instructions
+## Instruções do projeto
 
 - Um catálogo por ambiente, mesmos schemas (`bronze`, `silver`, `gold`) e tabelas nos dois:
   `ecommerce_lakehouse_dev` (target `dev`, default) e `ecommerce_lakehouse` (target `prod`,
@@ -61,8 +44,9 @@ If the CLI is not installed, see: https://docs.databricks.com/dev-tools/cli/inst
 - `@dp.expect_all_or_fail` só para o que nunca pode acontecer (chaves/campos
   obrigatórios, valores que sempre devem ser positivos, etc.).
 - Sempre rodar `databricks bundle validate --strict` antes do deploy.
-- CLI: use `--profile dbc-b2999451-9f53` (perfil válido para
-  `https://dbc-b2999451-9f53.cloud.databricks.com`).
+- CLI: sempre com `--profile <perfil>` apontando para o workspace. Nada de host, email ou ID
+  fixo em código: host vem do perfil, dono de prod de `${var.prod_owner}`, SP do CI de
+  `${var.ci_service_principal}` (lookup pelo nome `sp_ci_github`).
 
 ## Governança (Unity Catalog)
 
@@ -140,28 +124,28 @@ If the CLI is not installed, see: https://docs.databricks.com/dev-tools/cli/inst
   benchmark só mede, não ensina).
 - Toda mudança de instrução: rodar a avaliação de novo nos três espaços.
 
-## Números de referência (conferidos por SQL direto após cada prompt)
+## Números de referência (conferidos por SQL direto após cada etapa)
 
 Período dos dados: 13/12/2025 a 11/01/2026. Esses números servem de regressão, se uma
 mudança futura na bronze/silver/gold fizer algum deles sair do lugar, investigar antes de
 seguir.
 
-- **Prompt 1 (silver)**: 3.020 vendas, receita total R$ 974.077,28; 20 vendas de produto não
+- **Etapa 1 (silver)**: 3.020 vendas, receita total R$ 974.077,28; 20 vendas de produto não
   cadastrado (R$ 4.240,01); 5 vendas antes do cadastro do produto (R$ 325,88); 55 preços de
   concorrente suspeitos; 11 clientes com pronome de tratamento no cadastro. Clientes por
   região: Norte 17, Nordeste 12, Centro-Oeste 9, Sudeste 8, Sul 4.
-- **Prompt 2 (`gold.clientes_segmentacao`)**: 50 clientes, 10 VIP, 25 TOP_TIER, 15 REGULAR;
+- **Etapa 2 (`gold.clientes_segmentacao`)**: 50 clientes, 10 VIP, 25 TOP_TIER, 15 REGULAR;
   receita R$ 974.077,28 (igual à silver); maior cliente Ana Sophia Pereira (MG, R$ 30.716,63).
-- **Prompt 3 (`gold.vendas_temporais`/`vendas_produtos`/`vendas_detalhadas`)**: receita e
+- **Etapa 3 (`gold.vendas_temporais`/`vendas_produtos`/`vendas_detalhadas`)**: receita e
   3.020 vendas batendo com a silver nas 3 tabelas; 2.155 vendas no canal `ecommerce` (R$
   705.486,21), ticket médio geral R$ 322,54.
-- **Prompt 4 (`gold.precos_competitividade`)**: 215 produtos monitorados; 35
+- **Etapa 4 (`gold.precos_competitividade`)**: 215 produtos monitorados; 35
   `MAIS_CARO_QUE_TODOS`, dos quais 20 confirmados (sem preço suspeito, R$ 161.375,09 de
   receita) e 15 com preço suspeito (categoria Tênis, sem nenhuma venda, +100% acima da média
   do mercado, produto com preço suspeito continua em todas as contas, só precisa ser
   conferido); 6 `MAIS_BARATO_QUE_TODOS`; excluindo os suspeitos, Beleza é a categoria mais
   cara (+1,24% vs. média dos concorrentes).
-- **Prompt 5 (dashboards AI/BI)**: 3 dashboards publicados (Diretoria Comercial, Diretoria de
+- **Etapa 5 (dashboards AI/BI)**: 3 dashboards publicados (Diretoria Comercial, Diretoria de
   Customer Success, Diretoria de Pricing), todos conferidos contra os mesmos números acima.
 - **Genie Spaces**: 18/18 benchmarks GOOD (6 por espaço). Perguntas sensíveis estáveis em
   3 repetições ao vivo: % da receita VIP = 27,0%; 35 produtos mais caros que todos (com aviso
