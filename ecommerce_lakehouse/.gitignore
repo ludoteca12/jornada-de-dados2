@@ -1,5 +1,2 @@
+# Estado local de deploy do bundle
 .databricks/
-scratch/**
-!scratch/README.md
-**/explorations/**
-**/!explorations/README.md
