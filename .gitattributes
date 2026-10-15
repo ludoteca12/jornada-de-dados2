@@ -1,0 +1,3 @@
+# JSON é lido pelo Databricks como texto exato (o Genie compara o serialized_space byte a
+# byte). Com CRLF no Windows, o bundle enxerga mudança onde não há e tenta redeployar.
+*.json text eol=lf

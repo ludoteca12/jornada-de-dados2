@@ -1,0 +1,48 @@
+# CI: valida o bundle nos dois ambientes a cada PR e a cada push na main.
+# Autentica como o service principal sp_ci_github (OAuth M2M). Credenciais só nos secrets do
+# repositório: DATABRICKS_HOST, DATABRICKS_CLIENT_ID e DATABRICKS_CLIENT_SECRET.
+
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validar:
+    name: Validar bundle (${{ matrix.target }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [dev, prod]
+    defaults:
+      run:
+        working-directory: ecommerce_lakehouse
+    env:
+      DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+      DATABRICKS_CLIENT_ID: ${{ secrets.DATABRICKS_CLIENT_ID }}
+      DATABRICKS_CLIENT_SECRET: ${{ secrets.DATABRICKS_CLIENT_SECRET }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Sintaxe dos arquivos Python
+        run: python -m py_compile $(git ls-files '*.py')
+
+      - name: JSON válido (dashboards e Genie)
+        run: for f in $(git ls-files 'src/*.json'); do python -m json.tool "$f" > /dev/null || exit 1; done
+
+      - uses: databricks/setup-cli@main
+
+      - name: databricks bundle validate --strict
+        run: databricks bundle validate -t ${{ matrix.target }} --strict

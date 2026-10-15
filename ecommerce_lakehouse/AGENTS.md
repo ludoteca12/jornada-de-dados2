@@ -31,6 +31,11 @@ If the CLI is not installed, see: https://docs.databricks.com/dev-tools/cli/inst
   `spark.conf.get("catalogo")` na pipeline.
 - Desenvolver e testar sempre em dev (`-t dev`); prod só recebe deploy de código já
   validado em dev.
+- CI (`.github/workflows/ci.yml`) roda em todo PR: sintaxe Python, JSON de `src/` e
+  `bundle validate --strict` em dev e prod, autenticado como o service principal
+  `sp_ci_github` (CAN_MANAGE em prod declarado no `databricks.yml`). PR só entra com CI verde.
+- JSON sempre com quebra de linha LF (`.gitattributes`): dashboards e Genie são comparados
+  como texto exato, e CRLF faz o bundle enxergar mudança onde não há.
 - Pipeline não troca de catálogo: o deploy aceita a mudança, mas o run falha em loop com
   `Can not move tables across catalogs`. Para mudar o catálogo de um target, apagar a
   pipeline e redeployar; as tabelas antigas não saem em cascata (a cascata só vale para o
@@ -63,7 +68,7 @@ If the CLI is not installed, see: https://docs.databricks.com/dev-tools/cli/inst
 
 - Objetos que precisam existir antes do primeiro run (catálogo, schemas, Volume de landing,
   comentários) ficam em `governance/setup_ambiente.py`, rodado pelo job `setup_ambiente`
-  (`databricks bundle run setup_ambiente -t <dev|prod>`) — idempotente. Schema ou Volume novo
+  (`databricks bundle run setup_ambiente -t <dev|prod>`), idempotente. Schema ou Volume novo
   entra lá, nunca criado só pela UI/CLI sem registro no repo.
 - `governance/grants.sql` é só de prod; o catálogo de dev não recebe grants. Grant em tabela
   some se a tabela for recriada, rodar de novo nesse caso.

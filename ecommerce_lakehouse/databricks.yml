@@ -45,3 +45,7 @@ targets:
     permissions:
       - user_name: mateusvvas@gmail.com
         level: CAN_MANAGE
+      # sp_ci_github: identidade do GitHub Actions. Precisa de Manage na pasta de deploy de
+      # prod para validar o target no CI; credencial guardada só nos secrets do GitHub.
+      - service_principal_name: 2de18294-6b0e-4f10-a12a-0d4e7cc46fdf
+        level: CAN_MANAGE
