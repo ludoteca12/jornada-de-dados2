@@ -1,6 +1,7 @@
 # CI: valida o bundle nos dois ambientes a cada PR e a cada push na main.
-# Autentica como o service principal sp_ci_github (OAuth M2M). Credenciais só nos secrets do
-# repositório: DATABRICKS_HOST, DATABRICKS_CLIENT_ID e DATABRICKS_CLIENT_SECRET.
+# Autentica como o service principal sp_ci_github (OAuth M2M). Configuração no repositório:
+#   secrets:   DATABRICKS_HOST, DATABRICKS_CLIENT_ID, DATABRICKS_CLIENT_SECRET
+#   variables: DATABRICKS_PROD_OWNER (email do dono de prod; o CI não é o dono)
 
 name: CI
 
@@ -42,7 +43,11 @@ jobs:
       - name: JSON válido (dashboards e Genie)
         run: for f in $(git ls-files 'src/*.json'); do python -m json.tool "$f" > /dev/null || exit 1; done
 
-      - uses: databricks/setup-cli@main
+      - uses: databricks/setup-cli@v1.17.0
 
+      # Sem DATABRICKS_PROD_OWNER o validate ainda passa, mas checa a pasta do próprio service
+      # principal em vez da pasta real de prod.
       - name: databricks bundle validate --strict
-        run: databricks bundle validate -t ${{ matrix.target }} --strict
+        run: >-
+          databricks bundle validate -t ${{ matrix.target }} --strict
+          ${{ vars.DATABRICKS_PROD_OWNER && format('--var prod_owner={0}', vars.DATABRICKS_PROD_OWNER) || '' }}
