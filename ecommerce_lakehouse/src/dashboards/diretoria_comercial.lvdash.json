@@ -13,7 +13,7 @@
       ],
       "columns": [
         {
-          "displayName": "Receita",
+          "displayName": "Receita Total",
           "description": "Receita total em R$ (soma de quantidade x preco_unitario de todas as vendas)",
           "expression": "SUM(`receita`)"
         },
@@ -135,7 +135,7 @@
                 "name": "main_query",
                 "query": {
                   "datasetName": "ds_vendas",
-                  "fields": [{ "name": "measure(Receita)", "expression": "MEASURE(`Receita`)" }],
+                  "fields": [{ "name": "measure(Receita Total)", "expression": "MEASURE(`Receita Total`)" }],
                   "disaggregated": false
                 }
               }
@@ -145,8 +145,8 @@
               "widgetType": "counter",
               "encodings": {
                 "value": {
-                  "fieldName": "measure(Receita)",
-                  "displayName": "Receita",
+                  "fieldName": "measure(Receita Total)",
+                  "displayName": "Receita Total",
                   "format": { "type": "number-currency", "currencyCode": "BRL", "decimalPlaces": { "type": "max", "places": 2 } }
                 }
               },
