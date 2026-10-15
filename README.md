@@ -51,6 +51,29 @@ teste falhar, o job falha antes de qualquer pessoa ver um número errado.
 | **Silver** | Deduplica, tipa e padroniza. Problema conhecido é marcado em coluna, nunca descartado (apagar venda mudaria a receita). | Nome sem pronome de tratamento; UF → região IBGE; venda de produto não cadastrado sinalizada; preço de concorrente abaixo de 60% do nosso marcado como suspeito |
 | **Gold** | Uma tabela por pergunta de negócio, com todas as colunas comentadas (unidade e regra de cálculo), o que alimenta dashboard e Genie. | Segmentação VIP/TOP_TIER/REGULAR; ranking de produtos; classificação de preço em 5 faixas |
 
+## Em produção
+
+**Dashboards por diretoria** (AI/BI, publicados em prod)
+
+| Comercial | Customer Success | Pricing |
+|---|---|---|
+| ![Dashboard Comercial](docs/img/dashboard_comercial.png) | ![Dashboard Customer Success](docs/img/dashboard_cs.png) | ![Dashboard Pricing](docs/img/dashboard_pricing.png) |
+
+**Agente Genie da diretoria de Pricing**, respondendo em português com o aviso dos preços
+suspeitos:
+
+![Genie Pricing](docs/img/genie_pricing.png)
+
+**Orquestração e rastreabilidade**
+
+| Job (extração → pipeline → testes) | Pipeline Lakeflow |
+|---|---|
+| ![Job](docs/img/job.png) | ![Pipeline](docs/img/pipeline.png) |
+
+| Lineage no Unity Catalog | CI no GitHub Actions (dev e prod) |
+|---|---|
+| ![Lineage](docs/img/lineage.png) | ![CI](docs/img/ci.png) |
+
 ## Decisões técnicas
 
 Algumas escolhas que não eram óbvias e o motivo de cada uma:
@@ -88,6 +111,10 @@ Algumas escolhas que não eram óbvias e o motivo de cada uma:
   suspeitos e 11 clientes cadastrados com pronome de tratamento no nome.
 - **Consumo:** 3 dashboards e 3 agentes Genie em produção, cada um acessível só pela
   diretoria dona do domínio.
+- **Evidência reproduzível:** cada afirmação acima tem um script que qualquer pessoa roda no
+  próprio workspace: `verificar_numeros.py` (19/19 números de referência),
+  `avaliar_genie.py` (18/18 benchmarks dos agentes) e `testar_bloqueio.py` (uma leitura
+  permitida, três negadas).
 - **Rastreabilidade:** lineage bronze → silver → gold capturado automaticamente pelo Unity
   Catalog; auditoria de acesso via `system.access.audit`.
 
@@ -113,16 +140,49 @@ ecommerce_lakehouse/
 ├── resources/                  # pipeline, jobs, dashboards e Genie como recursos do bundle
 ├── governance/                 # bootstrap do Unity Catalog e grants por papel
 ├── testes/                     # testes de qualidade (última task do job)
+├── scripts/                    # verificação: números, avaliação do Genie, teste de bloqueio
 ├── seed/                       # arquivos de origem para reproduzir o projeto
 └── AGENTS.md                   # convenções e regras de negócio do projeto
 ```
 
 ## Como reproduzir
 
-Setup completo, comandos por ambiente e consultas de auditoria estão em
-[`ecommerce_lakehouse/README.md`](ecommerce_lakehouse/README.md). Em resumo:
+O passo a passo completo está em [`ecommerce_lakehouse/README.md`](ecommerce_lakehouse/README.md).
+Num workspace padrão (como a Free Edition), nenhum arquivo de configuração precisa ser
+editado: o host vem do perfil da CLI, o dono de prod é quem faz o deploy e o warehouse e o
+service principal do CI são buscados pelo nome. Em resumo:
 
-1. Suba os arquivos de `ecommerce_lakehouse/seed/` num bucket S3-compatível e crie o secret
-   scope com as credenciais.
-2. `databricks bundle deploy -t dev` e `databricks bundle run setup_ambiente -t dev`.
-3. `databricks bundle run ecommerce_lakehouse_job -t dev`.
+1. **Origem:** suba `ecommerce_lakehouse/seed/*.parquet` num bucket S3-compatível
+   (Supabase) e crie o secret scope com as credenciais.
+2. **Identidades:** crie os 5 grupos de conta e o service principal `sp_ci_github`.
+3. **Dev:** `bundle deploy`, `bundle run setup_ambiente` e `bundle run ecommerce_lakehouse_job`.
+4. **Prod:** as mesmas etapas, com um segundo deploy para criar os Genie Spaces depois das
+   tabelas, mais `grants.sql` e a publicação dos dashboards.
+5. **Conferência:** `scripts/verificar_numeros.py`, `scripts/avaliar_genie.py` e
+   `scripts/testar_bloqueio.py`.
+
+## Sobre o projeto
+
+Os dados de origem (vendas, clientes, produtos e preços de concorrentes) vêm do material do
+workshop **Jornada de Dados**. O projeto começou como base do workshop e foi evoluído de
+forma independente:
+- ingestão real a partir de um bucket externo;
+- governança no Unity Catalog;
+- ambientes dev e prod isolados;
+- agentes Genie avaliados;
+- CI;
+- scripts de verificação.
+
+O desenvolvimento foi feito com assistência de IA (Claude Code). O `AGENTS.md` é o contrato
+de convenções e regras de negócio que guia qualquer contribuição, humana ou de agente, e o
+`CLAUDE.md` só o importa.
+
+## Autor
+
+**Mateus Vieira Vasconcelos**
+[LinkedIn](https://www.linkedin.com/in/mateus-vasconcelos-data/) ·
+[GitHub](https://github.com/ludoteca12)
+
+## Licença
+
+Código sob a licença [MIT](LICENSE).
